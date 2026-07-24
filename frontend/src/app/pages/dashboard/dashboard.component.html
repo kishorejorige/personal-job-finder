@@ -1,51 +1,90 @@
-<div class="dashboard-container">
-  <div class="card">
-    <div class="card-header">
-      <h2>Personal Job Finder</h2>
-      <span class="subtitle">System Status Dashboard</span>
+<div class="dashboard-page">
+  <header class="page-header">
+    <h1>System Dashboard</h1>
+    <p>View local database status, API health, and application metrics.</p>
+  </header>
+
+  <div class="dashboard-grid">
+    <!-- Health Status Card -->
+    <div class="card status-card">
+      <div class="card-header">
+        <h2>System Health</h2>
+        <span class="subtitle">API & Database connections</span>
+      </div>
+
+      <div class="card-body">
+        <!-- Loading indicator -->
+        <div *ngIf="loading()" class="status-box loading">
+          <div class="spinner-sm"></div>
+          <p>Verifying services...</p>
+        </div>
+
+        <!-- Error box -->
+        <div *ngIf="!loading() && error()" class="status-box error">
+          <div class="icon">⚠️</div>
+          <h3>System Unreachable</h3>
+          <p>{{ error() }}</p>
+        </div>
+
+        <!-- Success status display -->
+        <div *ngIf="!loading() && healthData()" class="status-display">
+          <div class="status-item">
+            <span class="label">Backend API Status</span>
+            <span class="badge" [ngClass]="healthData()?.status === 'healthy' ? 'success' : 'danger'">
+              {{ healthData()?.status | uppercase }}
+            </span>
+          </div>
+
+          <div class="status-item">
+            <span class="label">SQLite Database</span>
+            <span class="badge" [ngClass]="healthData()?.database === 'connected' ? 'success' : 'danger'">
+              {{ healthData()?.database | uppercase }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-footer">
+        <button class="btn btn-primary" (click)="refreshDashboard()" [disabled]="loading()">
+          {{ loading() ? 'Refreshing...' : 'Refresh Status' }}
+        </button>
+      </div>
     </div>
 
-    <div class="card-body">
-      <!-- Loading indicator -->
-      <div *ngIf="loading()" class="status-box loading">
-        <div class="spinner"></div>
-        <p>Checking system connection...</p>
+    <!-- Stats Summary Card -->
+    <div class="card stats-card" *ngIf="jobSummary()">
+      <div class="card-header">
+        <h2>Job Statistics</h2>
+        <span class="subtitle">Aggregated totals of stored listings</span>
       </div>
 
-      <!-- Error box -->
-      <div *ngIf="!loading() && error()" class="status-box error">
-        <div class="icon">⚠️</div>
-        <h3>System Unreachable</h3>
-        <p>{{ error() }}</p>
+      <div class="card-body stats-body">
+        <div class="stats-mini-grid">
+          <div class="stat-box">
+            <span class="stat-num">{{ jobSummary()?.total_jobs }}</span>
+            <span class="stat-lbl">Total Jobs</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-num">{{ jobSummary()?.not_applied }}</span>
+            <span class="stat-lbl">Not Applied</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-num">{{ jobSummary()?.saved }}</span>
+            <span class="stat-lbl">Saved</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-num">{{ jobSummary()?.applied }}</span>
+            <span class="stat-lbl">Applied</span>
+          </div>
+        </div>
+
+        <div class="stats-strong-matches" *ngIf="(jobSummary()?.strong_matches || 0) > 0">
+          <div class="strong-match-card">
+            <span class="badge success">Strong Match</span>
+            <p>You have <strong>{{ jobSummary()?.strong_matches }}</strong> strong job matches (>= 80% score) waiting in your feed!</p>
+          </div>
+        </div>
       </div>
-
-      <!-- Success status display -->
-      <div *ngIf="!loading() && healthData()" class="status-display">
-        <div class="status-item">
-          <span class="label">Backend API Status:</span>
-          <span class="badge" [ngClass]="healthData()?.status === 'healthy' ? 'success' : 'danger'">
-            {{ healthData()?.status | uppercase }}
-          </span>
-        </div>
-
-        <div class="status-item">
-          <span class="label">SQLite Database:</span>
-          <span class="badge" [ngClass]="healthData()?.database === 'connected' ? 'success' : 'danger'">
-            {{ healthData()?.database | uppercase }}
-          </span>
-        </div>
-
-        <div class="success-message">
-          <div class="icon-success">✓</div>
-          <p>System foundation is successfully configured and connected!</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="card-footer">
-      <button class="btn btn-primary" (click)="checkHealth()" [disabled]="loading()">
-        {{ loading() ? 'Refreshing...' : 'Refresh Status' }}
-      </button>
     </div>
   </div>
 </div>

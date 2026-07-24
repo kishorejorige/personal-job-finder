@@ -1,0 +1,290 @@
+<div class="jobs-page-container">
+  <header class="page-header">
+    <div class="header-main">
+      <div>
+        <h1>Greenhouse Jobs</h1>
+        <p>Find public jobs and compare them with your resume profile.</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" (click)="recalculateAllMatches()" [disabled]="loading() || crawling()">
+          Recalculate Matches
+        </button>
+        <button class="btn btn-primary" (click)="crawlGreenhouse()" [disabled]="loading() || crawling()">
+          {{ crawling() ? 'Fetching...' : 'Fetch Greenhouse Jobs' }}
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Crawler Statistics alert -->
+  <div *ngIf="success() && searchResult()" class="crawler-stats-alert success-message">
+    <div class="icon-success">✓</div>
+    <div>
+      <strong>Greenhouse Crawl Synced Successfully!</strong>
+      <div class="stats-grid">
+        <span>Boards Checked: {{ searchResult()?.boards_checked }}</span>
+        <span>Succeeded: {{ searchResult()?.boards_succeeded }}</span>
+        <span>Failed: {{ searchResult()?.boards_failed }}</span>
+        <span>Jobs Found: {{ searchResult()?.jobs_received }}</span>
+        <span>New Jobs: {{ searchResult()?.jobs_created }}</span>
+        <span>Updated Jobs: {{ searchResult()?.jobs_updated }}</span>
+      </div>
+      <div *ngIf="searchResult()?.errors?.length" class="crawl-errors">
+        <p>Warnings/Errors:</p>
+        <ul>
+          <li *ngFor="let err of searchResult()?.errors">Board "{{ err.board }}": {{ err.message }}</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="error()" class="alert error">
+    <span class="alert-icon">⚠️</span>
+    <span class="alert-text">{{ error() }}</span>
+  </div>
+
+  <!-- Filters section -->
+  <section class="filters-card card">
+    <div class="card-header">
+      <h2>Filters</h2>
+      <span class="subtitle">Filter stored job listings</span>
+    </div>
+    <div class="card-body">
+      <form (ngSubmit)="applyFilters()" class="filters-form">
+        <div class="filter-row">
+          <div class="form-group">
+            <label for="searchKeyword">Keyword</label>
+            <input type="text" id="searchKeyword" [(ngModel)]="searchKeyword" name="searchKeyword" placeholder="e.g. Python, Engineer">
+          </div>
+          <div class="form-group">
+            <label for="filterCompany">Company</label>
+            <input type="text" id="filterCompany" [(ngModel)]="filterCompany" name="filterCompany" placeholder="e.g. Stripe">
+          </div>
+          <div class="form-group">
+            <label for="filterLocation">Location</label>
+            <input type="text" id="filterLocation" [(ngModel)]="filterLocation" name="filterLocation" placeholder="e.g. Remote">
+          </div>
+        </div>
+
+        <div class="filter-row">
+          <div class="form-group">
+            <label for="filterRemote">Remote Status</label>
+            <select id="filterRemote" [(ngModel)]="filterRemote" name="filterRemote">
+              <option value="">Any</option>
+              <option value="remote">Remote</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="onsite">On-Site</option>
+              <option value="unknown">Unknown</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="filterStatus">Status</label>
+            <select id="filterStatus" [(ngModel)]="filterStatus" name="filterStatus">
+              <option value="">Any</option>
+              <option value="not_applied">Not Applied</option>
+              <option value="saved">Saved</option>
+              <option value="applied">Applied</option>
+              <option value="interview">Interview</option>
+              <option value="rejected">Rejected</option>
+              <option value="offer">Offer</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="filterMinScore">Min Match Score</label>
+            <input type="number" id="filterMinScore" [(ngModel)]="filterMinScore" name="filterMinScore" min="0" max="100" placeholder="e.g. 70">
+          </div>
+        </div>
+
+        <div class="filter-actions">
+          <button type="button" class="btn btn-secondary" (click)="resetFilters()">Reset</button>
+          <button type="button" class="btn btn-secondary" (click)="showAllJobs()">Show All Jobs</button>
+          <button type="submit" class="btn btn-primary" [disabled]="loading()">Apply Filters</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Jobs Table Section -->
+  <section class="jobs-table-card card">
+    <div class="card-header">
+      <h2>Job Board Listings ({{ totalItems }} total)</h2>
+    </div>
+
+    <div class="card-body table-responsive">
+      <div *ngIf="loading()" class="status-indicator loading">
+        <div class="spinner"></div>
+        <p>Loading jobs...</p>
+      </div>
+
+      <div *ngIf="!loading() && jobs().length === 0" class="no-records">
+        <p>No job listings found. Try adjusting filters or click "Fetch Greenhouse Jobs".</p>
+      </div>
+
+      <table class="jobs-table" *ngIf="!loading() && jobs().length > 0">
+        <thead>
+          <tr>
+            <th (click)="changeSort('match_score')" class="sortable">
+              Match <span *ngIf="sortBy === 'match_score'">{{ sortOrder === 'desc' ? '▼' : '▲' }}</span>
+            </th>
+            <th (click)="changeSort('title')" class="sortable">
+              Job Title <span *ngIf="sortBy === 'title'">{{ sortOrder === 'desc' ? '▼' : '▲' }}</span>
+            </th>
+            <th (click)="changeSort('company')" class="sortable">
+              Company <span *ngIf="sortBy === 'company'">{{ sortOrder === 'desc' ? '▼' : '▲' }}</span>
+            </th>
+            <th>Location</th>
+            <th>Remote</th>
+            <th>Source</th>
+            <th>Status</th>
+            <th class="actions-header">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let job of jobs()">
+            <td>
+              <span class="match-badge" [ngClass]="getMatchClass(job.match_score)">
+                {{ job.match_score }}% - {{ getMatchLabel(job.match_score) }}
+              </span>
+            </td>
+            <td>
+              <a class="job-title-link" (click)="openJobDetails(job)">{{ job.title }}</a>
+            </td>
+            <td class="company-cell">{{ job.company_name }}</td>
+            <td class="location-cell">{{ job.location }}</td>
+            <td>
+              <span class="remote-badge" [ngClass]="'remote-' + job.remote_status">
+                {{ job.remote_status | uppercase }}
+              </span>
+            </td>
+            <td>{{ job.source | uppercase }}</td>
+            <td>
+              <span class="status-badge" [ngClass]="'status-' + job.application_status">
+                {{ job.application_status | uppercase }}
+              </span>
+            </td>
+            <td class="actions-cell">
+              <button class="btn btn-sm btn-icon" (click)="openJobDetails(job)" title="View Details">View</button>
+              <a [href]="job.original_url" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-primary" title="Apply Externally">
+                Apply
+              </a>
+              <button *ngIf="job.application_status === 'not_applied'" class="btn btn-sm btn-secondary" (click)="updateJobStatus(job, 'saved')">
+                Save
+              </button>
+              <button *ngIf="job.application_status !== 'applied'" class="btn btn-sm btn-secondary" (click)="updateJobStatus(job, 'applied')">
+                Mark Applied
+              </button>
+              <button class="btn btn-sm btn-danger-icon" (click)="deleteJob(job)" title="Delete Job">×</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination Footer -->
+    <div class="card-footer pagination-footer" *ngIf="!loading() && totalPages > 1">
+      <button class="btn btn-secondary btn-sm" [disabled]="currentPage === 1" (click)="changePage(-1)">
+        Previous
+      </button>
+      <span class="page-info">Page {{ currentPage }} of {{ totalPages }}</span>
+      <button class="btn btn-secondary btn-sm" [disabled]="currentPage === totalPages" (click)="changePage(1)">
+        Next
+      </button>
+    </div>
+  </section>
+</div>
+
+<!-- Details Modal Overlay -->
+<div class="modal-backdrop" *ngIf="selectedJob()" (click)="closeJobDetails()">
+  <div class="modal-card card" (click)="$event.stopPropagation()">
+    <div class="card-header modal-header">
+      <div>
+        <h2>{{ selectedJob()?.title }}</h2>
+        <span class="subtitle">{{ selectedJob()?.company_name }} — {{ selectedJob()?.location }}</span>
+      </div>
+      <button class="close-btn" (click)="closeJobDetails()">&times;</button>
+    </div>
+
+    <div class="card-body modal-body-scroll">
+      <div class="details-top">
+        <div class="detail-stat">
+          <span class="stat-label">Match Score</span>
+          <span class="match-badge large-badge" [ngClass]="getMatchClass(selectedJob()?.match_score || 0)">
+            {{ selectedJob()?.match_score }}% - {{ getMatchLabel(selectedJob()?.match_score || 0) }}
+          </span>
+        </div>
+        <div class="detail-stat">
+          <span class="stat-label">Remote Status</span>
+          <span class="remote-badge" [ngClass]="'remote-' + selectedJob()?.remote_status">
+            {{ selectedJob()?.remote_status | uppercase }}
+          </span>
+        </div>
+        <div class="detail-stat">
+          <span class="stat-label">Job Source</span>
+          <span>{{ selectedJob()?.source | uppercase }} (Board: {{ selectedJob()?.source_board }})</span>
+        </div>
+      </div>
+
+      <!-- Skills analysis -->
+      <div class="skills-analysis">
+        <div class="skills-block">
+          <h3>Matched Skills</h3>
+          <div class="skill-badges-container" *ngIf="selectedJob()?.matched_skills?.length; else noMatched">
+            <span class="badge success" *ngFor="let s of selectedJob()?.matched_skills">{{ s }}</span>
+          </div>
+          <ng-template #noMatched><p class="no-skills-msg">None</p></ng-template>
+        </div>
+
+        <div class="skills-block">
+          <h3>Missing Skills</h3>
+          <div class="skill-badges-container" *ngIf="selectedJob()?.missing_skills?.length; else noMissing">
+            <span class="badge danger" *ngFor="let s of selectedJob()?.missing_skills">{{ s }}</span>
+          </div>
+          <ng-template #noMissing><p class="no-skills-msg">None</p></ng-template>
+        </div>
+      </div>
+
+      <!-- Job Description (Render as Preformatted Plain Text) -->
+      <div class="description-block">
+        <h3>Job Description</h3>
+        <div class="description-text">
+          {{ selectedJob()?.description }}
+        </div>
+      </div>
+
+      <!-- Application Details & Notes -->
+      <div class="application-details">
+        <h3>Application Status</h3>
+        <div class="status-selector-row">
+          <div class="form-group select-status-group">
+            <select [value]="selectedJob()?.application_status" (change)="updateJobStatus(selectedJob()!, $any($event.target).value)">
+              <option value="not_applied">Not Applied</option>
+              <option value="saved">Saved</option>
+              <option value="applied">Applied</option>
+              <option value="interview">Interview</option>
+              <option value="rejected">Rejected</option>
+              <option value="offer">Offer</option>
+            </select>
+          </div>
+          <span class="applied-date-label" *ngIf="selectedJob()?.applied_date">
+            Applied Date: {{ selectedJob()?.applied_date | date:'medium' }}
+          </span>
+        </div>
+
+        <div class="notes-block">
+          <h3>Personal Notes</h3>
+          <textarea [(ngModel)]="editNotesText" rows="3" placeholder="Add details about application progress, interview schedules, etc..."></textarea>
+          <button class="btn btn-primary btn-sm save-notes-btn" (click)="saveNotes()" [disabled]="isSavingNotes">
+            {{ isSavingNotes ? 'Saving...' : 'Save Notes' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-footer modal-footer">
+      <button class="btn btn-secondary" (click)="closeJobDetails()">Close</button>
+      <a [href]="selectedJob()?.original_url" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+        Apply Externally
+      </a>
+    </div>
+  </div>
+</div>

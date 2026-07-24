@@ -4,10 +4,18 @@ This is a personal, local full-stack application to parse resumes, find jobs, tr
 
 ---
 
-## Supported Resume Formats (Phase 2)
-- **File Extensions**: `.pdf`, `.docx`, `.txt`
+## Capabilities & Supported Formats
+
+### Resume Extraction (Phase 2)
+- **Supported Resume formats**: `.pdf`, `.docx`, `.txt`
 - **Maximum File Size**: 2 MB
 - **Basic Protections**: File size limits, extension allowlist validation, safe filename handling, and no HTML execution from parsed text.
+
+### Greenhouse Crawler (Phase 3)
+- **Integration**: Scrapes public jobs via Greenhouse Boards API: `https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs?content=true`
+- **Search Scope**: Search is company-specific based on configured board tokens.
+- **Fail-safe crawls**: Isolation per board token; if one board fails or times out, the search completes successfully for the other boards.
+- **Automatic Matching**: Scores jobs from 0 to 100 based on matching skills, title overlap, experience keywords, and location.
 
 ---
 
@@ -103,54 +111,72 @@ The application will run at: `http://localhost:4200/`
 
 ---
 
-## 3. Profile API Endpoints (Phase 2)
+## 3. Greenhouse Board Configurations (Phase 3)
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/profile/upload-resume` | Upload and parse `.pdf`/`.docx`/`.txt` resume (Max 2MB). Updates or creates the single active profile. |
-| `GET` | `/api/profile` | Retrieve the active profile. Returns `404 Not Found` if empty. |
-| `PUT` | `/api/profile` | Update profile fields manually. |
+Greenhouse jobs are fetched using company-specific board tokens defined in `backend/app/providers/greenhouse_boards.py`.
+
+### How to Add a Company Board
+1. Open a target company's Greenhouse-hosted careers page (e.g., `https://boards.greenhouse.io/stripe`).
+2. Identify the board token from the URL (`stripe`).
+3. Open `backend/app/providers/greenhouse_boards.py` and append it:
+   ```python
+   GREENHOUSE_BOARDS = [
+       ...
+       {
+           "company_name": "Stripe",
+           "board_token": "stripe",
+       }
+   ]
+   ```
+4. Restart the backend server.
+5. In the frontend, navigate to **Jobs** and click **Fetch Greenhouse Jobs**.
+
+> [!WARNING]
+> Some companies use custom styling, redirects, or entirely custom career portals. Only public boards hosted on `boards.greenhouse.io` are supported.
 
 ---
 
-## 4. Verification and Testing
+## 4. Match Score Weights (Phase 3)
 
-### Run Backend Unit Tests
-To execute backend tests:
+When a job is parsed, its match score (0-100) is calculated against the active resume profile using these weights:
+- **Skill Match (Max 60 points)**: Intersection of required job skills with profile skills. If no skills are defined in the job description, it falls back to matching profile skills against the description body text.
+- **Title Match (Max 20 points)**: Overlap of keywords between the job title and the profile's professional title candidate.
+- **Experience Match (Max 15 points)**: Frequency of job title keywords and skills appearing in the profile summary, projects, experience, or certifications.
+- **Location Match (Max 5 points)**: Checked if the job is remote, or if the profile location matches the job location.
+
+---
+
+## 5. API Endpoint Reference
+
+### Profile Endpoints (Phase 2)
+- `POST /api/profile/upload-resume` - Upload and extract resume PDF/DOCX/TXT text (Max 2MB).
+- `GET /api/profile` - Retrieve the active profile.
+- `PUT /api/profile` - Edit profile details manually.
+
+### Job Endpoints (Phase 3)
+- `POST /api/jobs/search/greenhouse` - Trigger crawler on configured Greenhouse boards.
+- `GET /api/jobs` - Return paginated, sorted, and filtered jobs.
+- `GET /api/jobs/summary` - Retrieve job statistics for the Dashboard counters.
+- `GET /api/jobs/{job_id}` - Retrieve one job.
+- `PATCH /api/jobs/{job_id}/status` - Update status (sets applied date automatically if transitioned to `applied`).
+- `PATCH /api/jobs/{job_id}/notes` - Edit user notes for the job.
+- `POST /api/jobs/recalculate-matches` - Recalculate scores for all jobs.
+- `DELETE /api/jobs/{job_id}` - Delete job from the local database.
+
+---
+
+## 6. Verification and Testing
+
+### Run Backend Pytest Suite
 ```powershell
 cd backend
 $env:PYTHONPATH="."; .venv\Scripts\python.exe -m pytest
 ```
-
-### Manual Resume Verification Test
-To manually verify the resume extraction pipeline:
-1. Create a local temporary `.txt` file named `sample_resume.txt` with these contents:
-   ```text
-   Kishore
-   Hyderabad, India
-   kishore@example.com
-   9876543210
-
-   PYTHON DEVELOPER
-
-   SUMMARY
-   Python developer building automation tools, FastAPI applications and AI projects.
-
-   SKILLS
-   Python, FastAPI, Docker, SQLite, PostgreSQL, Git, REST API
-
-   PROJECTS
-   Personal Job Finder
-   AI Resume and Proposal Generator
-   JobMatch AI Agent
-
-   EDUCATION
-   ITI Electronics
-
-   CERTIFICATIONS
-   AI Foundations
-   ```
-2. Navigate to `http://localhost:4200/profile` in your browser.
-3. Choose `sample_resume.txt` and click **Choose Resume File** to select it. The file will automatically upload and scan.
-4. Verify that the profile form populates with the extracted data (Name: Kishore, Title: PYTHON DEVELOPER, etc.).
-5. Make edits to the fields, click **Save Profile**, refresh the page, and confirm that the updated values persist.
+This runs 16 unit tests covering:
+- Health diagnostics
+- PDF/DOCX/TXT text parsers and validation limits
+- HTML description sanitation and unescaping
+- Word-boundary skill extraction and remote-status checks
+- Match score calculations
+- Sync duplication checks
+- REST routes and stats aggregation

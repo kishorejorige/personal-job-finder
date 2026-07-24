@@ -5,7 +5,9 @@ from sqlalchemy import text
 from app.database import get_db, engine, Base
 from app.config import settings
 from app.models.profile import Profile
+from app.models.job import Job
 from app.routes import profile
+from app.routes import jobs
 
 # Create database tables (if not already existing)
 Base.metadata.create_all(bind=engine)
@@ -14,6 +16,7 @@ app = FastAPI(title="Personal Job Finder API")
 
 # Register routes
 app.include_router(profile.router)
+app.include_router(jobs.router)
 
 # Configure CORS for local development
 origins = [

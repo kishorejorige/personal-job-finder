@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HealthService, HealthResponse } from '../../core/services/health.service';
+import { JobService, JobSummary } from '../../core/services/job.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -11,13 +12,20 @@ import { HealthService, HealthResponse } from '../../core/services/health.servic
 })
 export class DashboardComponent implements OnInit {
   private readonly healthService = inject(HealthService);
+  private readonly jobService = inject(JobService);
 
   protected readonly loading = signal(false);
   protected readonly healthData = signal<HealthResponse | null>(null);
   protected readonly error = signal<string | null>(null);
+  protected readonly jobSummary = signal<JobSummary | null>(null);
 
   ngOnInit(): void {
+    this.refreshDashboard();
+  }
+
+  refreshDashboard(): void {
     this.checkHealth();
+    this.loadJobSummary();
   }
 
   checkHealth(): void {
@@ -34,6 +42,17 @@ export class DashboardComponent implements OnInit {
         this.healthData.set(null);
         this.error.set('Could not connect to the backend server. Please make sure it is running.');
         this.loading.set(false);
+      }
+    });
+  }
+
+  loadJobSummary(): void {
+    this.jobService.getSummary().subscribe({
+      next: (summary) => {
+        this.jobSummary.set(summary);
+      },
+      error: (err) => {
+        console.error('Failed to load job summary', err);
       }
     });
   }
