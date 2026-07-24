@@ -1,1 +1,15 @@
-<router-outlet></router-outlet>
+<nav class="nav-bar">
+  <div class="nav-container">
+    <div class="nav-logo">
+      <span class="logo-text">Personal Job Finder</span>
+    </div>
+    <div class="nav-links">
+      <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Dashboard</a>
+      <a routerLink="/profile" routerLinkActive="active">Resume Profile</a>
+    </div>
+  </div>
+</nav>
+
+<main class="main-content">
+  <router-outlet></router-outlet>
+</main>

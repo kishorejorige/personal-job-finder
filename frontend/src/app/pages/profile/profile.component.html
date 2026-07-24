@@ -1,0 +1,131 @@
+<div class="profile-page-container">
+  <header class="page-header">
+    <h1>Resume Profile</h1>
+    <p>Upload your resume (PDF, DOCX, or TXT) to automatically extract your details, or manually configure your professional profile.</p>
+  </header>
+
+  <!-- Upload Section -->
+  <section class="upload-section card">
+    <div class="card-header">
+      <h2>Upload Resume</h2>
+      <span class="subtitle">PDF, DOCX, or TXT — Maximum 2 MB</span>
+    </div>
+
+    <div class="card-body upload-body">
+      <div class="file-picker-container">
+        <label for="resumeFile" class="file-label-btn">Choose Resume File</label>
+        <input type="file" id="resumeFile" accept=".pdf,.docx,.txt" (change)="onFileSelected($event)" class="hidden-file-input">
+        <span class="file-name" *ngIf="selectedFileName; else noFile">{{ selectedFileName }}</span>
+        <ng-template #noFile><span class="file-name-placeholder">No file chosen</span></ng-template>
+      </div>
+
+      <!-- Action feedback -->
+      <div *ngIf="loading()" class="status-indicator loading">
+        <div class="spinner-sm"></div>
+        <span>Processing resume...</span>
+      </div>
+
+      <div *ngIf="error()" class="alert error">
+        <span class="alert-icon">⚠️</span>
+        <span class="alert-text">{{ error() }}</span>
+      </div>
+
+      <div *ngIf="success()" class="alert success">
+        <span class="alert-icon">✓</span>
+        <span class="alert-text">{{ success() }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Profile Edit Form -->
+  <section class="profile-form-section card" *ngIf="profile()">
+    <div class="card-header">
+      <h2>Profile Details</h2>
+      <span class="subtitle">Review and edit the extracted details. Changes will be saved locally.</span>
+    </div>
+
+    <form (ngSubmit)="saveProfile()" #profileForm="ngForm" class="profile-form">
+      <div class="card-body form-grid">
+        <!-- Short Inputs Row -->
+        <div class="form-row split-row">
+          <div class="form-group">
+            <label for="fullName">Full Name</label>
+            <input type="text" id="fullName" name="fullName" [(ngModel)]="formName" required>
+          </div>
+          <div class="form-group">
+            <label for="professionalTitle">Professional Title</label>
+            <input type="text" id="professionalTitle" name="professionalTitle" [(ngModel)]="formTitle">
+          </div>
+        </div>
+
+        <div class="form-row split-row">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" [(ngModel)]="formEmail">
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone</label>
+            <input type="text" id="phone" name="phone" [(ngModel)]="formPhone">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="location">Location</label>
+            <input type="text" id="location" name="location" [(ngModel)]="formLocation">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="professionalSummary">Professional Summary</label>
+            <textarea id="professionalSummary" name="professionalSummary" rows="4" [(ngModel)]="formSummary"></textarea>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="skills">Skills (comma-separated)</label>
+            <input type="text" id="skills" name="skills" [(ngModel)]="formSkills" placeholder="e.g., Python, FastAPI, Angular, Docker">
+          </div>
+        </div>
+
+        <!-- Long lists in textareas -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="workExperience">Work Experience (one entry per line)</label>
+            <textarea id="workExperience" name="workExperience" rows="5" [(ngModel)]="formExperience" placeholder="e.g., Software Engineer at TechCorp (2021-Present)"></textarea>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="education">Education (one entry per line)</label>
+            <textarea id="education" name="education" rows="3" [(ngModel)]="formEducation" placeholder="e.g., BS in Computer Science, State University"></textarea>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="projects">Projects (one entry per line)</label>
+            <textarea id="projects" name="projects" rows="4" [(ngModel)]="formProjects" placeholder="e.g., Personal Job Finder App"></textarea>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="certifications">Certifications (one entry per line)</label>
+            <textarea id="certifications" name="certifications" rows="3" [(ngModel)]="formCertifications" placeholder="e.g., AWS Certified Developer"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-footer form-actions">
+        <button type="button" class="btn btn-secondary" (click)="resetChanges()" [disabled]="saving() || loading()">Reset Changes</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving() || loading() || !profileForm.form.valid">
+          {{ saving() ? 'Saving...' : 'Save Profile' }}
+        </button>
+      </div>
+    </form>
+  </section>
+</div>
