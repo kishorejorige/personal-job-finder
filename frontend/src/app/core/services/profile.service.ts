@@ -43,7 +43,7 @@ export interface ResumeUploadResponse {
 })
 export class ProfileService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'http://127.0.0.1:8001/api/profile';
+  private readonly apiUrl = 'http://127.0.0.1:8010/api/profile';
 
   getProfile(): Observable<Profile> {
     return this.http.get<Profile>(this.apiUrl);

@@ -12,7 +12,7 @@ export interface HealthResponse {
 })
 export class HealthService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'http://127.0.0.1:8001/api/health';
+  private readonly apiUrl = 'http://127.0.0.1:8010/api/health';
 
   getHealth(): Observable<HealthResponse> {
     return this.http.get<HealthResponse>(this.apiUrl);
