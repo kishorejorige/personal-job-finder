@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+*.env
+!.env.example
+
+# Databases
+*.db
+*.sqlite3
+
+# Node / Angular
+node_modules/
+/dist/
+.angular/
+.nx/
+/tmp/
+/out-tsc/
+bazel-out/
+
+# IDE / OS files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
