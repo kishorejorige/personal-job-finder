@@ -1,7 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpResponse } from '@angular/common/http';
 import { HealthService, HealthResponse } from '../../core/services/health.service';
 import { JobService, JobSummary, ProviderStatus } from '../../core/services/job.service';
+import { ReportService } from '../../core/services/report.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -13,12 +15,17 @@ import { JobService, JobSummary, ProviderStatus } from '../../core/services/job.
 export class DashboardComponent implements OnInit {
   private readonly healthService = inject(HealthService);
   private readonly jobService = inject(JobService);
+  private readonly reportService = inject(ReportService);
 
   protected readonly loading = signal(false);
   protected readonly healthData = signal<HealthResponse | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly jobSummary = signal<JobSummary | null>(null);
   protected readonly providerStatuses = signal<ProviderStatus[]>([]);
+
+  protected readonly exporting = signal(false);
+  protected readonly exportSuccess = signal<string | null>(null);
+  protected readonly exportError = signal<string | null>(null);
 
   ngOnInit(): void {
     this.refreshDashboard();
@@ -80,5 +87,47 @@ export class DashboardComponent implements OnInit {
       .filter((d): d is Date => d !== null);
     if (dates.length === 0) return null;
     return new Date(Math.max(...dates.map(d => d.getTime())));
+  }
+
+  downloadReport(format: 'pdf', status: string): void {
+    this.exporting.set(true);
+    this.exportSuccess.set(null);
+    this.exportError.set(null);
+
+    this.reportService.downloadJobsPdf(null, status).subscribe({
+      next: (response: HttpResponse<Blob>) => {
+        const blob = response.body;
+        if (!blob) {
+          this.exportError.set('Received empty report data.');
+          this.exporting.set(false);
+          return;
+        }
+
+        const contentDisposition = response.headers.get('content-disposition') || response.headers.get('Content-Disposition');
+        let filename = `personal-job-finder-${status}-jobs.pdf`;
+        if (contentDisposition) {
+          const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+          const matches = filenameRegex.exec(contentDisposition);
+          if (matches != null && matches[1]) {
+            filename = matches[1].replace(/['"]/g, '');
+          }
+        }
+
+        const link = document.createElement('a');
+        const url = window.URL.createObjectURL(blob);
+        link.href = url;
+        link.download = filename;
+        link.click();
+        window.URL.revokeObjectURL(url);
+
+        this.exporting.set(false);
+        this.exportSuccess.set('Report downloaded successfully.');
+      },
+      error: (err) => {
+        console.error('Export failed', err);
+        this.exporting.set(false);
+        this.exportError.set('Unable to create the report.');
+      }
+    });
   }
 }

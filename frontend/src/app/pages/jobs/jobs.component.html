@@ -161,6 +161,55 @@
     </div>
   </section>
 
+  <!-- Export Reports panel -->
+  <section class="export-card card">
+    <div class="card-header export-header-row">
+      <div>
+        <h2>Export Reports</h2>
+        <span class="subtitle">Download job listings in PDF or CSV formats</span>
+      </div>
+      <button class="btn btn-secondary btn-summary-report" (click)="downloadApplicationSummaryPdf()" [disabled]="exportingPdf() || exportingCsv() || loading()">
+        Download Application Summary Report
+      </button>
+    </div>
+    <div class="card-body">
+      <!-- Status messages -->
+      <div *ngIf="exportStatusMessage()" class="export-indicator info">
+        <span class="spinner-sm"></span>
+        <span>{{ exportStatusMessage() }}</span>
+      </div>
+      <div *ngIf="exportErrorMessage()" class="export-indicator error">
+        <span>⚠️</span>
+        <span>{{ exportErrorMessage() }}</span>
+      </div>
+
+      <div class="export-buttons-group">
+        <div class="export-column">
+          <h3>PDF Reports</h3>
+          <div class="btn-grid">
+            <button type="button" class="btn btn-export" (click)="downloadReport('pdf', 'all')" [disabled]="exportingPdf() || exportingCsv()">All Jobs</button>
+            <button type="button" class="btn btn-export" (click)="downloadReport('pdf', 'applied')" [disabled]="exportingPdf() || exportingCsv()">Applied Jobs</button>
+            <button type="button" class="btn btn-export" (click)="downloadReport('pdf', 'non_applied')" [disabled]="exportingPdf() || exportingCsv()">Non-Applied Jobs</button>
+            <button type="button" class="btn btn-export" (click)="downloadReport('pdf', 'saved')" [disabled]="exportingPdf() || exportingCsv()">Saved Jobs</button>
+            <button type="button" class="btn btn-export" (click)="downloadReport('pdf', 'interview')" [disabled]="exportingPdf() || exportingCsv()">Interview Jobs</button>
+            <button type="button" class="btn btn-export" (click)="downloadReport('pdf', 'rejected')" [disabled]="exportingPdf() || exportingCsv()">Rejected Jobs</button>
+            <button type="button" class="btn btn-export" (click)="downloadReport('pdf', 'offer')" [disabled]="exportingPdf() || exportingCsv()">Offer Jobs</button>
+            <button type="button" class="btn btn-export" (click)="downloadReport('pdf', 'application_activity')" [disabled]="exportingPdf() || exportingCsv()">Activity Report</button>
+            <button type="button" class="btn btn-export btn-primary-export" (click)="downloadReport('pdf', filterStatus || 'all')" [disabled]="exportingPdf() || exportingCsv()">Export Filtered Jobs</button>
+          </div>
+        </div>
+
+        <div class="export-column">
+          <h3>CSV Data</h3>
+          <div class="btn-grid">
+            <button type="button" class="btn btn-export" (click)="downloadReport('csv', 'all')" [disabled]="exportingPdf() || exportingCsv()">Export All CSV</button>
+            <button type="button" class="btn btn-export btn-primary-export" (click)="downloadReport('csv', filterStatus || 'all')" [disabled]="exportingPdf() || exportingCsv()">Export Filtered CSV</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Jobs Table Section -->
   <section class="jobs-table-card card">
     <div class="card-header">
@@ -350,6 +399,7 @@
     </div>
 
     <div class="card-footer modal-footer">
+      <button class="btn btn-secondary" (click)="downloadSingleJobPdf(selectedJob()!.id)">Export Job PDF</button>
       <button class="btn btn-secondary" (click)="closeJobDetails()">Close</button>
       <a [href]="selectedJob()?.original_url" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
         Apply Externally

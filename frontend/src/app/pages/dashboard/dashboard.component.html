@@ -97,6 +97,35 @@
       </div>
     </div>
 
+    <!-- Export Shortcuts Card -->
+    <div class="card export-shortcuts-card">
+      <div class="card-header">
+        <h2>Report Shortcuts</h2>
+        <span class="subtitle">Quick access to PDF tracking reports</span>
+      </div>
+      <div class="card-body">
+        <div *ngIf="exporting()" class="status-box loading">
+          <div class="spinner-sm"></div>
+          <p>Preparing PDF report...</p>
+        </div>
+        <div *ngIf="exportSuccess()" class="status-box success" style="color: #065f46; font-size: 0.85rem; font-weight: 600;">
+          {{ exportSuccess() }}
+        </div>
+        <div *ngIf="exportError()" class="status-box error" style="color: #991b1b; font-size: 0.85rem; font-weight: 600;">
+          {{ exportError() }}
+        </div>
+
+        <div class="shortcut-actions-row" style="display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
+          <button class="btn btn-primary" (click)="downloadReport('pdf', 'applied')" [disabled]="exporting()" style="flex: 1; font-size: 0.85rem; padding: 10px; min-width: 140px;">
+            Export Applied PDF
+          </button>
+          <button class="btn btn-secondary" (click)="downloadReport('pdf', 'non_applied')" [disabled]="exporting()" style="flex: 1; font-size: 0.85rem; padding: 10px; min-width: 140px;">
+            Export Non-Applied PDF
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Provider Sync Health Card -->
     <div class="card health-card" *ngIf="providerStatuses().length > 0">
       <div class="card-header">

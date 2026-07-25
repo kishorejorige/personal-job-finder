@@ -20,11 +20,25 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 @pytest.fixture(scope="function", autouse=True)
 def setup_db():
     Base.metadata.create_all(bind=engine)
+
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+
     db = TestingSessionLocal()
     db.query(Job).delete()
     db.query(Profile).delete()
     db.commit()
+
     yield db
+
+    db.close()
+    app.dependency_overrides.pop(get_db, None)
     Base.metadata.drop_all(bind=engine)
     if os.path.exists("./test_jobs.db"):
         try:
@@ -32,14 +46,6 @@ def setup_db():
         except PermissionError:
             pass
 
-def override_get_db():
-    try:
-        db = TestingSessionLocal()
-        yield db
-    finally:
-        db.close()
-
-app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
 # 1. Test HTML description cleaning

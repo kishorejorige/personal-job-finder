@@ -10,7 +10,7 @@ from app.database import Base, get_db
 from app.models.profile import Profile
 
 # Use a temporary local SQLite database for testing
-TEST_DATABASE_URL = "sqlite:///./test_jobs.db"
+TEST_DATABASE_URL = "sqlite:///./test_profile.db"
 
 engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -19,29 +19,33 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 def setup_db():
     # Create tables
     Base.metadata.create_all(bind=engine)
+
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+
     db = TestingSessionLocal()
     # Clean up previous runs
     db.query(Profile).delete()
     db.commit()
+
     yield db
+
+    db.close()
+    app.dependency_overrides.pop(get_db, None)
     # Drop tables after test
     Base.metadata.drop_all(bind=engine)
     # Delete test db file if it exists
-    if os.path.exists("./test_jobs.db"):
+    if os.path.exists("./test_profile.db"):
         try:
-            os.remove("./test_jobs.db")
+            os.remove("./test_profile.db")
         except PermissionError:
             pass
-
-# Override get_db dependency
-def override_get_db():
-    try:
-        db = TestingSessionLocal()
-        yield db
-    finally:
-        db.close()
-
-app.dependency_overrides[get_db] = override_get_db
 
 client = TestClient(app)
 

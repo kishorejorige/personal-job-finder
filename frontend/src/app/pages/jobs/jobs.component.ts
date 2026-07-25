@@ -1,7 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpResponse } from '@angular/common/http';
 import { JobService, Job, JobListResponse, JobFilters, SearchAllResponse, ProviderStatus } from '../../core/services/job.service';
+import { ReportService } from '../../core/services/report.service';
 
 @Component({
   selector: 'app-jobs',
@@ -12,12 +14,19 @@ import { JobService, Job, JobListResponse, JobFilters, SearchAllResponse, Provid
 })
 export class JobsComponent implements OnInit {
   private readonly jobService = inject(JobService);
+  private readonly reportService = inject(ReportService);
 
   protected readonly jobs = signal<Job[]>([]);
   protected readonly loading = signal(false);
   protected readonly crawling = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly success = signal<string | null>(null);
+
+  // Export progress states
+  protected readonly exportingPdf = signal(false);
+  protected readonly exportingCsv = signal(false);
+  protected readonly exportStatusMessage = signal<string | null>(null);
+  protected readonly exportErrorMessage = signal<string | null>(null);
 
   // Sync results
   protected searchResult = signal<SearchAllResponse | null>(null);
@@ -303,5 +312,160 @@ export class JobsComponent implements OnInit {
   getSourceName(key: string): string {
     const s = this.availableSources.find(src => src.key === key);
     return s ? s.name : key;
+  }
+
+  downloadReport(format: 'pdf' | 'csv', status: string): void {
+    if (format === 'pdf') {
+      this.exportingPdf.set(true);
+    } else {
+      this.exportingCsv.set(true);
+    }
+    this.exportStatusMessage.set('Preparing report...');
+    this.exportErrorMessage.set(null);
+    this.success.set(null);
+
+    const filters = {
+      search: this.searchKeyword.trim() || undefined,
+      company: this.filterCompany.trim() || undefined,
+      location: this.filterLocation.trim() || undefined,
+      remote_status: this.filterRemote || undefined,
+      source: this.filterSource || undefined,
+      include_duplicates: this.filterIncludeDuplicates,
+      minimum_match_score: this.filterMinScore !== null ? this.filterMinScore : undefined,
+      sort_by: this.sortBy,
+      sort_order: this.sortOrder
+    };
+
+    const request$ = format === 'pdf'
+      ? this.reportService.downloadJobsPdf(filters, status)
+      : this.reportService.downloadJobsCsv(filters, status);
+
+    request$.subscribe({
+      next: (response: HttpResponse<Blob>) => {
+        const blob = response.body;
+        if (!blob) {
+          this.handleExportError('Received empty report data.');
+          return;
+        }
+
+        // Get filename from header or fallback
+        const contentDisposition = response.headers.get('content-disposition') || response.headers.get('Content-Disposition');
+        let filename = `personal-job-finder-${status}-jobs.${format}`;
+        if (contentDisposition) {
+          const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+          const matches = filenameRegex.exec(contentDisposition);
+          if (matches != null && matches[1]) {
+            filename = matches[1].replace(/['"]/g, '');
+          }
+        }
+
+        const link = document.createElement('a');
+        const url = window.URL.createObjectURL(blob);
+        link.href = url;
+        link.download = filename;
+        link.click();
+
+        // Clean up URL object
+        window.URL.revokeObjectURL(url);
+
+        if (format === 'pdf') {
+          this.exportingPdf.set(false);
+        } else {
+          this.exportingCsv.set(false);
+        }
+        this.exportStatusMessage.set(null);
+        this.success.set(`${format.toUpperCase()} report downloaded successfully.`);
+      },
+      error: (err) => {
+        console.error('Export failed', err);
+        this.handleExportError('Unable to create the report. Please try again.');
+      }
+    });
+  }
+
+  downloadSingleJobPdf(jobId: number): void {
+    this.exportStatusMessage.set('Preparing single job PDF...');
+    this.exportErrorMessage.set(null);
+    this.success.set(null);
+
+    this.reportService.downloadSingleJobPdf(jobId).subscribe({
+      next: (response) => {
+        const blob = response.body;
+        if (blob) {
+          const contentDisposition = response.headers.get('content-disposition') || response.headers.get('Content-Disposition');
+          let filename = `job-details-${jobId}.pdf`;
+          if (contentDisposition) {
+            const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+            const matches = filenameRegex.exec(contentDisposition);
+            if (matches != null && matches[1]) {
+              filename = matches[1].replace(/['"]/g, '');
+            }
+          }
+          const link = document.createElement('a');
+          const url = window.URL.createObjectURL(blob);
+          link.href = url;
+          link.download = filename;
+          link.click();
+          window.URL.revokeObjectURL(url);
+          this.success.set('Job PDF downloaded successfully.');
+        } else {
+          this.exportErrorMessage.set('Received empty data for job PDF.');
+        }
+        this.exportStatusMessage.set(null);
+      },
+      error: (err) => {
+        console.error('Job PDF export failed', err);
+        this.exportStatusMessage.set(null);
+        this.exportErrorMessage.set('Unable to download the job PDF. Please try again.');
+      }
+    });
+  }
+
+  downloadApplicationSummaryPdf(): void {
+    this.exportingPdf.set(true);
+    this.exportStatusMessage.set('Preparing summary report...');
+    this.exportErrorMessage.set(null);
+    this.success.set(null);
+
+    this.reportService.downloadApplicationSummaryPdf().subscribe({
+      next: (response) => {
+        const blob = response.body;
+        if (blob) {
+          const contentDisposition = response.headers.get('content-disposition') || response.headers.get('Content-Disposition');
+          let filename = `personal-job-finder-application-summary.pdf`;
+          if (contentDisposition) {
+            const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+            const matches = filenameRegex.exec(contentDisposition);
+            if (matches != null && matches[1]) {
+              filename = matches[1].replace(/['"]/g, '');
+            }
+          }
+          const link = document.createElement('a');
+          const url = window.URL.createObjectURL(blob);
+          link.href = url;
+          link.download = filename;
+          link.click();
+          window.URL.revokeObjectURL(url);
+          this.success.set('Summary PDF downloaded successfully.');
+        } else {
+          this.exportErrorMessage.set('Received empty data for summary PDF.');
+        }
+        this.exportingPdf.set(false);
+        this.exportStatusMessage.set(null);
+      },
+      error: (err) => {
+        console.error('Summary report export failed', err);
+        this.exportingPdf.set(false);
+        this.exportStatusMessage.set(null);
+        this.exportErrorMessage.set('Unable to download the summary report. Please try again.');
+      }
+    });
+  }
+
+  private handleExportError(msg: string): void {
+    this.exportingPdf.set(false);
+    this.exportingCsv.set(false);
+    this.exportStatusMessage.set(null);
+    this.exportErrorMessage.set(msg);
   }
 }

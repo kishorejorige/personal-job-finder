@@ -23,6 +23,7 @@ from app.services.job_service import (
 )
 from app.providers.config import PROVIDER_SETTINGS
 from app.providers.greenhouse_boards import GREENHOUSE_BOARDS
+from app.services.job_query_service import apply_job_filters, apply_job_sorting
 from app.providers.lever_sites import LEVER_SITES
 from app.providers.ashby_boards import ASHBY_BOARDS
 from app.providers.company_career_sites import COMPANY_CAREER_SITES
@@ -123,6 +124,7 @@ def get_jobs(
     source: Optional[str] = Query(None, description="Filter by one or more sources, comma-separated"),
     include_duplicates: bool = Query(False, description="Whether to include duplicate job postings"),
     minimum_match_score: Optional[int] = Query(None),
+    posted_after: Optional[str] = Query(None, description="Filter jobs posted on or after date YYYY-MM-DD"),
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1),
     sort_by: str = Query("match_score"),
@@ -130,46 +132,26 @@ def get_jobs(
 ):
     query = db.query(Job)
 
-    # Filtering
-    if search:
-        search_filter = f"%{search}%"
-        query = query.filter(
-            Job.title.ilike(search_filter) |
-            Job.company_name.ilike(search_filter) |
-            Job.location.ilike(search_filter) |
-            Job.description.ilike(search_filter) |
-            Job.skills.ilike(search_filter)
-        )
-    if company:
-        query = query.filter(Job.company_name.ilike(f"%{company}%"))
-    if location:
-        query = query.filter(Job.location.ilike(f"%{location}%"))
-    if remote_status:
-        query = query.filter(Job.remote_status == remote_status)
-    if application_status:
-        query = query.filter(Job.application_status == application_status)
-    if source:
-        source_list = [s.strip() for s in source.split(",") if s.strip()]
-        if source_list:
-            query = query.filter(Job.source.in_(source_list))
-    if not include_duplicates:
-        query = query.filter(Job.duplicate_of_id.is_(None))
-    if minimum_match_score is not None:
-        query = query.filter(Job.match_score >= minimum_match_score)
+    # Apply shared filters
+    query = apply_job_filters(
+        query=query,
+        search=search,
+        company=company,
+        location=location,
+        remote_status=remote_status,
+        application_status=application_status,
+        source=source,
+        include_duplicates=include_duplicates,
+        minimum_match_score=minimum_match_score,
+        posted_after=posted_after
+    )
 
-    # Sorting Column Mapping
-    sort_map = {
-        "match_score": Job.match_score,
-        "created_at": Job.created_at,
-        "company": Job.company_name,
-        "title": Job.title
-    }
-    sort_column = sort_map.get(sort_by, Job.match_score)
-
-    if sort_order == "desc":
-        query = query.order_by(sort_column.desc())
-    else:
-        query = query.order_by(sort_column.asc())
+    # Apply shared sorting
+    query = apply_job_sorting(
+        query=query,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
 
     total = query.count()
     offset = (page - 1) * page_size

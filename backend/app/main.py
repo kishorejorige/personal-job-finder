@@ -9,6 +9,7 @@ from app.models.job import Job
 from app.models.provider_run import ProviderRun
 from app.routes import profile
 from app.routes import jobs
+from app.routes import reports
 
 # Automatically upgrade database schema for SQLite if needed before running create_all
 with engine.connect() as conn:
@@ -70,6 +71,7 @@ app = FastAPI(title="Personal Job Finder API")
 # Register routes
 app.include_router(profile.router)
 app.include_router(jobs.router)
+app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
 
 # Configure CORS for local development
 origins = [
