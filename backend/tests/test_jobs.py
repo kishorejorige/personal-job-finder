@@ -46,6 +46,7 @@ def setup_db():
     db.close()
     app.dependency_overrides.pop(get_db, None)
     Base.metadata.drop_all(bind=engine)
+    engine.dispose()
     if os.path.exists("./test_jobs.db"):
         try:
             os.remove("./test_jobs.db")

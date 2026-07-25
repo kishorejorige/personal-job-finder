@@ -52,6 +52,7 @@ def setup_db():
     db.commit()
     yield db
     Base.metadata.drop_all(bind=engine)
+    engine.dispose()
     if os.path.exists("./test_phase4.db"):
         try:
             os.remove("./test_phase4.db")

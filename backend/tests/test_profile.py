@@ -39,9 +39,8 @@ def setup_db():
 
     db.close()
     app.dependency_overrides.pop(get_db, None)
-    # Drop tables after test
     Base.metadata.drop_all(bind=engine)
-    # Delete test db file if it exists
+    engine.dispose()
     if os.path.exists("./test_profile.db"):
         try:
             os.remove("./test_profile.db")
