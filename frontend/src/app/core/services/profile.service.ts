@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { API_BASE_URL } from '../config/api.config';
 
 export interface Profile {
   id: number;
@@ -43,7 +44,7 @@ export interface ResumeUploadResponse {
 })
 export class ProfileService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'http://127.0.0.1:8010/api/profile';
+  private readonly apiUrl = `${API_BASE_URL}/api/profile`;
 
   getProfile(): Observable<Profile> {
     return this.http.get<Profile>(this.apiUrl);

@@ -19,6 +19,8 @@ class JobBase(BaseModel):
     application_status: str = "not_applied"
     applied_date: Optional[datetime] = None
     notes: Optional[str] = None
+    job_fingerprint: Optional[str] = None
+    duplicate_of_id: Optional[int] = None
 
 class JobResponse(JobBase):
     id: int
@@ -82,6 +84,34 @@ class JobSearchResponse(BaseModel):
     jobs_created: int
     jobs_updated: int
     errors: List[BoardError] = []
+
+class SearchAllRequest(BaseModel):
+    sources: Optional[List[str]] = None
+
+class ProviderStatus(BaseModel):
+    source: str
+    enabled: bool
+    configured_sources: int
+    last_run_at: Optional[datetime] = None
+    last_status: str
+    last_jobs_received: int
+    last_error: Optional[str] = None
+
+class ProviderRunResponse(BaseModel):
+    id: int
+    source: str
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+    status: str
+    sources_checked: int
+    sources_succeeded: int
+    sources_failed: int
+    jobs_received: int
+    jobs_created: int
+    jobs_updated: int
+    error_summary: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 class JobSummaryResponse(BaseModel):
     total_jobs: int

@@ -1,7 +1,7 @@
 import httpx
 import logging
-from typing import List, Dict, Any, Tuple
-from app.providers.base import JobProvider
+from typing import List, Dict, Any
+from app.providers.base import JobProvider, ProviderFetchResult
 from app.providers.greenhouse_boards import GREENHOUSE_BOARDS
 
 logger = logging.getLogger(__name__)
@@ -12,19 +12,16 @@ class GreenhouseProvider(JobProvider):
     def __init__(self, boards: List[Dict[str, str]] = None):
         self.boards = boards or GREENHOUSE_BOARDS
 
-    async def fetch_jobs(self) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    async def fetch_jobs(self) -> ProviderFetchResult:
         """
         Fetches public jobs from configured Greenhouse boards.
-        Returns a tuple: (list of normalized job dicts, statistics dict).
+        Returns a ProviderFetchResult.
         """
         normalized_jobs = []
-        stats = {
-            "source": self.provider_name,
-            "boards_checked": len(self.boards),
-            "boards_succeeded": 0,
-            "boards_failed": 0,
-            "errors": []
-        }
+        errors = []
+        sources_checked = len(self.boards)
+        sources_succeeded = 0
+        sources_failed = 0
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             for board in self.boards:
@@ -46,14 +43,14 @@ class GreenhouseProvider(JobProvider):
                         else:
                             err_msg = f"HTTP error {response.status_code}"
                             if attempt == 1:
-                                stats["errors"].append({"board": token, "message": err_msg})
+                                errors.append({"board": token, "message": err_msg})
                     except (httpx.RequestError, httpx.TimeoutException) as e:
                         err_msg = f"Network failure: {str(e)}"
                         if attempt == 1:
-                            stats["errors"].append({"board": token, "message": err_msg})
+                            errors.append({"board": token, "message": err_msg})
 
                 if succeeded and response_data and "jobs" in response_data:
-                    stats["boards_succeeded"] += 1
+                    sources_succeeded += 1
                     for job in response_data["jobs"]:
                         loc_data = job.get("location")
                         location_name = loc_data.get("name") if loc_data else "Unknown"
@@ -72,6 +69,13 @@ class GreenhouseProvider(JobProvider):
                         normalized_jobs.append(normalized)
                 else:
                     if not succeeded:
-                        stats["boards_failed"] += 1
+                        sources_failed += 1
 
-        return normalized_jobs, stats
+        return ProviderFetchResult(
+            source=self.provider_name,
+            jobs=normalized_jobs,
+            sources_checked=sources_checked,
+            sources_succeeded=sources_succeeded,
+            sources_failed=sources_failed,
+            errors=errors
+        )

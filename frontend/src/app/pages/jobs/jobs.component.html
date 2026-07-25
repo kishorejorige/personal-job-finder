@@ -2,38 +2,78 @@
   <header class="page-header">
     <div class="header-main">
       <div>
-        <h1>Greenhouse Jobs</h1>
-        <p>Find public jobs and compare them with your resume profile.</p>
+        <h1>Unified Job Finder</h1>
+        <p>Aggregate jobs from multiple public boards, matching them with your resume.</p>
       </div>
       <div class="header-actions">
         <button class="btn btn-secondary" (click)="recalculateAllMatches()" [disabled]="loading() || crawling()">
           Recalculate Matches
         </button>
-        <button class="btn btn-primary" (click)="crawlGreenhouse()" [disabled]="loading() || crawling()">
-          {{ crawling() ? 'Fetching...' : 'Fetch Greenhouse Jobs' }}
+        <button class="btn btn-secondary" (click)="fetchSelectedSources(true)" [disabled]="loading() || crawling()">
+          Fetch Selected
         </button>
+        <button class="btn btn-primary" (click)="fetchAllSources(true)" [disabled]="loading() || crawling()">
+          Fetch All Sources
+        </button>
+      </div>
+    </div>
+
+    <!-- Active Source Selector Checklist -->
+    <div class="sources-selector-panelcard">
+      <h3>Select Sources to Fetch</h3>
+      <div class="sources-checklist">
+        <label *ngFor="let s of availableSources" class="source-check-item">
+          <input type="checkbox" [checked]="selectedSources[s.key]" (change)="toggleSourceSelection(s.key)" [disabled]="crawling() || s.disabled">
+          <span class="custom-checkbox"></span>
+          {{ s.name }}
+        </label>
       </div>
     </div>
   </header>
 
-  <!-- Crawler Statistics alert -->
+  <!-- Progress bar / crawling indicator -->
+  <div *ngIf="crawling()" class="crawler-progress-card">
+    <div class="spinner-small"></div>
+    <span class="progress-text">Fetching jobs. This may take a few minutes.</span>
+  </div>
+
+  <!-- Crawler Statistics Summaries -->
   <div *ngIf="success() && searchResult()" class="crawler-stats-alert success-message">
-    <div class="icon-success">✓</div>
-    <div>
-      <strong>Greenhouse Crawl Synced Successfully!</strong>
-      <div class="stats-grid">
-        <span>Boards Checked: {{ searchResult()?.boards_checked }}</span>
-        <span>Succeeded: {{ searchResult()?.boards_succeeded }}</span>
-        <span>Failed: {{ searchResult()?.boards_failed }}</span>
-        <span>Jobs Found: {{ searchResult()?.jobs_received }}</span>
-        <span>New Jobs: {{ searchResult()?.jobs_created }}</span>
-        <span>Updated Jobs: {{ searchResult()?.jobs_updated }}</span>
-      </div>
-      <div *ngIf="searchResult()?.errors?.length" class="crawl-errors">
-        <p>Warnings/Errors:</p>
-        <ul>
-          <li *ngFor="let err of searchResult()?.errors">Board "{{ err.board }}": {{ err.message }}</li>
-        </ul>
+    <div class="alert-header">
+      <span class="icon-success">✓</span>
+      <strong>Job Refresh Completed</strong>
+      <span class="time-meta">Total Jobs Found: {{ searchResult()?.total_jobs_received }} (Created: {{ searchResult()?.jobs_created }}, Updated: {{ searchResult()?.jobs_updated }})</span>
+    </div>
+
+    <!-- Cards summary grid for each provider -->
+    <div class="provider-cards-grid">
+      <div *ngFor="let run of searchResult()?.provider_results" class="provider-summary-card" [ngClass]="'run-' + run.status">
+        <div class="card-title-row">
+          <h4>{{ getSourceName(run.source) }}</h4>
+          <span class="status-badge-small" [ngClass]="'status-' + run.status">{{ run.status | uppercase }}</span>
+        </div>
+        <div class="card-details-row">
+          <div>Checked: <strong>{{ run.sources_checked }}</strong></div>
+          <div>Success: <strong class="text-success">{{ run.sources_succeeded }}</strong></div>
+          <div>Failed: <strong class="text-danger">{{ run.sources_failed }}</strong></div>
+          <div>Received: <strong>{{ run.jobs_received }}</strong></div>
+        </div>
+        <div class="card-diff-row">
+          <span class="badge badge-new">+{{ run.jobs_created }} New</span>
+          <span class="badge badge-upd">~{{ run.jobs_updated }} Upd</span>
+        </div>
+
+        <!-- Individual provider error lists inside details -->
+        <div *ngIf="run.errors?.length" class="card-error-expander">
+          <details>
+            <summary>View Errors ({{ run.errors.length }})</summary>
+            <ul>
+              <li *ngFor="let err of run.errors">
+                <strong>{{ err.board || err.site || run.source }}:</strong> {{ err.message }}
+              </li>
+            </ul>
+          </details>
+        </div>
       </div>
     </div>
   </div>
@@ -47,7 +87,7 @@
   <section class="filters-card card">
     <div class="card-header">
       <h2>Filters</h2>
-      <span class="subtitle">Filter stored job listings</span>
+      <span class="subtitle">Narrow down your job search query results</span>
     </div>
     <div class="card-body">
       <form (ngSubmit)="applyFilters()" class="filters-form">
@@ -90,14 +130,31 @@
             </select>
           </div>
           <div class="form-group">
+            <label for="filterSource">Job Source</label>
+            <select id="filterSource" [(ngModel)]="filterSource" name="filterSource">
+              <option value="">All Sources</option>
+              <option *ngFor="let s of availableSources" [value]="s.key">{{ s.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="filter-row align-items-center">
+          <div class="form-group">
             <label for="filterMinScore">Min Match Score</label>
             <input type="number" id="filterMinScore" [(ngModel)]="filterMinScore" name="filterMinScore" min="0" max="100" placeholder="e.g. 70">
+          </div>
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="filterIncludeDuplicates" name="filterIncludeDuplicates">
+              <span class="custom-checkbox"></span>
+              Show Duplicate Listings
+            </label>
           </div>
         </div>
 
         <div class="filter-actions">
           <button type="button" class="btn btn-secondary" (click)="resetFilters()">Reset</button>
-          <button type="button" class="btn btn-secondary" (click)="showAllJobs()">Show All Jobs</button>
+          <button type="button" class="btn btn-secondary" (click)="showAllJobs()">Show All</button>
           <button type="submit" class="btn btn-primary" [disabled]="loading()">Apply Filters</button>
         </div>
       </form>
@@ -107,7 +164,7 @@
   <!-- Jobs Table Section -->
   <section class="jobs-table-card card">
     <div class="card-header">
-      <h2>Job Board Listings ({{ totalItems }} total)</h2>
+      <h2>Job board aggregation ({{ totalItems }} listings)</h2>
     </div>
 
     <div class="card-body table-responsive">
@@ -117,7 +174,7 @@
       </div>
 
       <div *ngIf="!loading() && jobs().length === 0" class="no-records">
-        <p>No job listings found. Try adjusting filters or click "Fetch Greenhouse Jobs".</p>
+        <p>No job listings found. Try adjusting filters or select sources above and click "Fetch".</p>
       </div>
 
       <table class="jobs-table" *ngIf="!loading() && jobs().length > 0">
@@ -148,15 +205,21 @@
             </td>
             <td>
               <a class="job-title-link" (click)="openJobDetails(job)">{{ job.title }}</a>
+              <!-- Duplicate badge indicator -->
+              <span *ngIf="job.duplicate_of_id" class="badge-dup-tag" title="This job is a duplicate of a preferred listing.">Duplicate</span>
             </td>
             <td class="company-cell">{{ job.company_name }}</td>
-            <td class="location-cell">{{ job.location }}</td>
+            <td class="location-cell">{{ job.location || 'Unknown' }}</td>
             <td>
               <span class="remote-badge" [ngClass]="'remote-' + job.remote_status">
-                {{ job.remote_status | uppercase }}
+                {{ (job.remote_status || 'unknown') | uppercase }}
               </span>
             </td>
-            <td>{{ job.source | uppercase }}</td>
+            <td>
+              <span class="source-badge-icon" [ngClass]="'source-' + job.source">
+                {{ getSourceName(job.source) }}
+              </span>
+            </td>
             <td>
               <span class="status-badge" [ngClass]="'status-' + job.application_status">
                 {{ job.application_status | uppercase }}
@@ -199,7 +262,7 @@
     <div class="card-header modal-header">
       <div>
         <h2>{{ selectedJob()?.title }}</h2>
-        <span class="subtitle">{{ selectedJob()?.company_name }} — {{ selectedJob()?.location }}</span>
+        <span class="subtitle">{{ selectedJob()?.company_name }} — {{ selectedJob()?.location || 'Unknown' }}</span>
       </div>
       <button class="close-btn" (click)="closeJobDetails()">&times;</button>
     </div>
@@ -212,15 +275,21 @@
             {{ selectedJob()?.match_score }}% - {{ getMatchLabel(selectedJob()?.match_score || 0) }}
           </span>
         </div>
+        <div class="detail-stat" *ngIf="selectedJob()?.salary">
+          <span class="stat-label">Salary / Compensation</span>
+          <span class="salary-text">{{ selectedJob()?.salary }}</span>
+        </div>
         <div class="detail-stat">
           <span class="stat-label">Remote Status</span>
           <span class="remote-badge" [ngClass]="'remote-' + selectedJob()?.remote_status">
-            {{ selectedJob()?.remote_status | uppercase }}
+            {{ (selectedJob()?.remote_status || 'unknown') | uppercase }}
           </span>
         </div>
         <div class="detail-stat">
-          <span class="stat-label">Job Source</span>
-          <span>{{ selectedJob()?.source | uppercase }} (Board: {{ selectedJob()?.source_board }})</span>
+          <span class="stat-label">Source Category</span>
+          <span class="source-badge-icon" [ngClass]="'source-' + selectedJob()?.source">
+            {{ getSourceName(selectedJob()?.source || '') }}
+          </span>
         </div>
       </div>
 
@@ -243,7 +312,7 @@
         </div>
       </div>
 
-      <!-- Job Description (Render as Preformatted Plain Text) -->
+      <!-- Job Description -->
       <div class="description-block">
         <h3>Job Description</h3>
         <div class="description-text">

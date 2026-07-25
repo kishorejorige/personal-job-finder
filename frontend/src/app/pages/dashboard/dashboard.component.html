@@ -41,6 +41,16 @@
               {{ healthData()?.database | uppercase }}
             </span>
           </div>
+
+          <div class="status-item">
+            <span class="label">Active Sources</span>
+            <span class="badge success">{{ getActiveSourcesCount() }} Enabled</span>
+          </div>
+
+          <div class="status-item" *ngIf="getLastRefreshDate()">
+            <span class="label">Last Refresh</span>
+            <span class="meta-text">{{ getLastRefreshDate() | date:'medium' }}</span>
+          </div>
         </div>
       </div>
 
@@ -82,6 +92,32 @@
           <div class="strong-match-card">
             <span class="badge success">Strong Match</span>
             <p>You have <strong>{{ jobSummary()?.strong_matches }}</strong> strong job matches (>= 80% score) waiting in your feed!</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Provider Sync Health Card -->
+    <div class="card health-card" *ngIf="providerStatuses().length > 0">
+      <div class="card-header">
+        <h2>Job Providers Health</h2>
+        <span class="subtitle">Last sync status of active sources</span>
+      </div>
+      <div class="card-body">
+        <div class="provider-health-list">
+          <div *ngFor="let p of providerStatuses()" class="provider-health-item">
+            <div class="provider-info-col">
+              <strong class="provider-name">{{ p.source | uppercase }}</strong>
+              <span class="provider-meta">{{ p.configured_sources }} sites configured</span>
+            </div>
+            <div class="provider-status-col">
+              <span class="badge" [ngClass]="p.last_status === 'success' ? 'success' : p.last_status === 'partial_success' ? 'warning' : p.last_status === 'disabled' ? 'disabled' : 'danger'">
+                {{ p.last_status | uppercase }}
+              </span>
+              <span class="time-diff" *ngIf="p.last_run_at">
+                {{ p.last_run_at | date:'shortTime' }}
+              </span>
+            </div>
           </div>
         </div>
       </div>

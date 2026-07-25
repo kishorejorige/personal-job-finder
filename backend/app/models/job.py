@@ -30,6 +30,9 @@ class Job(Base):
     applied_date = Column(DateTime(timezone=True), nullable=True)
     notes = Column(Text, nullable=True)
 
+    job_fingerprint = Column(String, nullable=True, index=True)
+    duplicate_of_id = Column(Integer, nullable=True, index=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     last_seen_at = Column(DateTime(timezone=True), server_default=func.now())

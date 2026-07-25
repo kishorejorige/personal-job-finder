@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { JobService, Job, JobListResponse, JobFilters, JobSearchResponse } from '../../core/services/job.service';
+import { JobService, Job, JobListResponse, JobFilters, SearchAllResponse, ProviderStatus } from '../../core/services/job.service';
 
 @Component({
   selector: 'app-jobs',
@@ -19,8 +19,33 @@ export class JobsComponent implements OnInit {
   protected readonly error = signal<string | null>(null);
   protected readonly success = signal<string | null>(null);
 
-  // Crawler statistics
-  protected searchResult = signal<JobSearchResponse | null>(null);
+  // Sync results
+  protected searchResult = signal<SearchAllResponse | null>(null);
+  protected providerStatuses = signal<ProviderStatus[]>([]);
+
+  // Available sources config
+  protected readonly availableSources = [
+    { key: 'greenhouse', name: 'Greenhouse', disabled: false },
+    { key: 'lever', name: 'Lever', disabled: false },
+    { key: 'ashby', name: 'Ashby', disabled: false },
+    { key: 'remote_ok', name: 'Remote OK', disabled: false },
+    { key: 'hacker_news', name: 'Hacker News', disabled: false },
+    { key: 'hasjob', name: 'Hasjob', disabled: false },
+    { key: 'company_careers', name: 'Company Careers', disabled: false },
+    { key: 'ycombinator', name: 'Y Combinator (Pending)', disabled: true }
+  ];
+
+  // Selection state
+  protected selectedSources: { [key: string]: boolean } = {
+    greenhouse: true,
+    lever: true,
+    ashby: true,
+    remote_ok: true,
+    hacker_news: true,
+    hasjob: true,
+    company_careers: true,
+    ycombinator: false
+  };
 
   // Pagination & Filtering
   protected totalItems = 0;
@@ -34,6 +59,8 @@ export class JobsComponent implements OnInit {
   protected filterLocation = '';
   protected filterRemote = '';
   protected filterStatus = '';
+  protected filterSource = '';
+  protected filterIncludeDuplicates = false;
   protected filterMinScore: number | null = null;
 
   // Sorting
@@ -47,6 +74,7 @@ export class JobsComponent implements OnInit {
 
   ngOnInit(): void {
     this.fetchJobs();
+    this.fetchProviderStatuses();
   }
 
   fetchJobs(): void {
@@ -59,6 +87,8 @@ export class JobsComponent implements OnInit {
       location: this.filterLocation.trim() || undefined,
       remote_status: this.filterRemote || undefined,
       application_status: this.filterStatus || undefined,
+      source: this.filterSource || undefined,
+      include_duplicates: this.filterIncludeDuplicates,
       minimum_match_score: this.filterMinScore !== null ? this.filterMinScore : undefined,
       page: this.currentPage,
       page_size: this.pageSize,
@@ -82,6 +112,17 @@ export class JobsComponent implements OnInit {
     });
   }
 
+  fetchProviderStatuses(): void {
+    this.jobService.getProvidersStatus().subscribe({
+      next: (res) => {
+        this.providerStatuses.set(res);
+      },
+      error: (err) => {
+        console.error('Failed to load provider statuses', err);
+      }
+    });
+  }
+
   applyFilters(): void {
     this.currentPage = 1;
     this.fetchJobs();
@@ -93,6 +134,8 @@ export class JobsComponent implements OnInit {
     this.filterLocation = '';
     this.filterRemote = '';
     this.filterStatus = '';
+    this.filterSource = '';
+    this.filterIncludeDuplicates = false;
     this.filterMinScore = null;
     this.currentPage = 1;
     this.fetchJobs();
@@ -121,22 +164,43 @@ export class JobsComponent implements OnInit {
     this.fetchJobs();
   }
 
-  crawlGreenhouse(): void {
+  toggleSourceSelection(key: string): void {
+    this.selectedSources[key] = !this.selectedSources[key];
+  }
+
+  fetchSelectedSources(force: boolean = false): void {
+    const selected = Object.keys(this.selectedSources).filter(k => this.selectedSources[k]);
+    if (selected.length === 0) {
+      alert('Please select at least one job source.');
+      return;
+    }
+    this.runSync(selected, force);
+  }
+
+  fetchAllSources(force: boolean = false): void {
+    // Select all sources
+    this.availableSources.forEach(s => this.selectedSources[s.key] = true);
+    const all = this.availableSources.map(s => s.key);
+    this.runSync(all, force);
+  }
+
+  private runSync(sources: string[], force: boolean): void {
     this.crawling.set(true);
     this.error.set(null);
     this.success.set(null);
     this.searchResult.set(null);
 
-    this.jobService.searchGreenhouse().subscribe({
-      next: (res: JobSearchResponse) => {
+    this.jobService.searchAll(sources, force).subscribe({
+      next: (res: SearchAllResponse) => {
         this.searchResult.set(res);
-        this.success.set('Greenhouse search and sync completed.');
+        this.success.set('Job search refresh completed.');
         this.crawling.set(false);
         this.fetchJobs();
+        this.fetchProviderStatuses();
       },
       error: (err) => {
-        console.error('Greenhouse crawl failed', err);
-        const errMsg = err.error?.detail || 'Greenhouse crawl failed. Please check backend log details.';
+        console.error('Job sync failed', err);
+        const errMsg = err.error?.detail || 'Job refresh failed. Please check backend logs.';
         this.error.set(errMsg);
         this.crawling.set(false);
       }
@@ -234,5 +298,10 @@ export class JobsComponent implements OnInit {
     if (score >= 60) return 'match-good';
     if (score >= 40) return 'match-partial';
     return 'match-low';
+  }
+
+  getSourceName(key: string): string {
+    const s = this.availableSources.find(src => src.key === key);
+    return s ? s.name : key;
   }
 }

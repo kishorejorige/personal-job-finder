@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HealthService, HealthResponse } from '../../core/services/health.service';
-import { JobService, JobSummary } from '../../core/services/job.service';
+import { JobService, JobSummary, ProviderStatus } from '../../core/services/job.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -18,6 +18,7 @@ export class DashboardComponent implements OnInit {
   protected readonly healthData = signal<HealthResponse | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly jobSummary = signal<JobSummary | null>(null);
+  protected readonly providerStatuses = signal<ProviderStatus[]>([]);
 
   ngOnInit(): void {
     this.refreshDashboard();
@@ -26,6 +27,7 @@ export class DashboardComponent implements OnInit {
   refreshDashboard(): void {
     this.checkHealth();
     this.loadJobSummary();
+    this.loadProviderStatuses();
   }
 
   checkHealth(): void {
@@ -55,5 +57,28 @@ export class DashboardComponent implements OnInit {
         console.error('Failed to load job summary', err);
       }
     });
+  }
+
+  loadProviderStatuses(): void {
+    this.jobService.getProvidersStatus().subscribe({
+      next: (statuses) => {
+        this.providerStatuses.set(statuses);
+      },
+      error: (err) => {
+        console.error('Failed to load provider statuses', err);
+      }
+    });
+  }
+
+  protected getActiveSourcesCount(): number {
+    return this.providerStatuses().filter(p => p.enabled).length;
+  }
+
+  protected getLastRefreshDate(): Date | null {
+    const dates = this.providerStatuses()
+      .map(p => p.last_run_at ? new Date(p.last_run_at) : null)
+      .filter((d): d is Date => d !== null);
+    if (dates.length === 0) return null;
+    return new Date(Math.max(...dates.map(d => d.getTime())));
   }
 }
