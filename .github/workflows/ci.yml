@@ -20,32 +20,32 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
-          cache: 'pip'
-          cache-dependency-path: backend/requirements.txt
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
 
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt -r requirements-dev.txt
+          python -m pip install -r requirements.txt -r requirements-dev.txt
 
-      - name: Pip check
-        run: |
-          pip check
+      - name: Pip Check
+        run: python -m pip check
 
       - name: Ruff Check
-        run: |
-          python -m ruff check .
+        run: python -m ruff check .
 
       - name: Ruff Format Check
-        run: |
-          python -m ruff format --check .
+        run: python -m ruff format --check .
 
       - name: Run Pytest
         env:
           PYTHONPATH: .
-        run: |
-          python -m pytest tests
+          APP_ENV: testing
+          DATABASE_URL: sqlite:///./test_ci.db
+        run: python -m pytest tests
 
   frontend-build:
     name: Frontend CI
