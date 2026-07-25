@@ -18,6 +18,25 @@ export interface Profile {
   certifications: string[];
   resume_filename?: string;
   resume_text?: string;
+
+  career_objective?: string;
+  total_experience?: string;
+  current_company?: string;
+  current_role?: string;
+  preferred_job_role?: string;
+  preferred_location?: string;
+  availability?: string;
+  occupation_category?: string;
+  technical_skills?: string[];
+  soft_skills?: string[];
+  languages?: string[];
+  achievements?: string[];
+  training?: string[];
+  internships?: string[];
+  licences?: string[];
+  tools_and_equipment?: string[];
+  additional_information?: string;
+  resume_quality?: string;
 }
 
 export interface ProfileUpdate {
@@ -32,6 +51,24 @@ export interface ProfileUpdate {
   education: string[];
   projects: string[];
   certifications: string[];
+
+  career_objective: string;
+  total_experience: string;
+  current_company: string;
+  current_role: string;
+  preferred_job_role: string;
+  preferred_location: string;
+  availability: string;
+  occupation_category: string;
+  technical_skills: string[];
+  soft_skills: string[];
+  languages: string[];
+  achievements: string[];
+  training: string[];
+  internships: string[];
+  licences: string[];
+  tools_and_equipment: string[];
+  additional_information: string;
 }
 
 export interface ResumeUploadResponse {

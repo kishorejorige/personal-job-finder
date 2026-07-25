@@ -29,6 +29,39 @@ with engine.connect() as conn:
         # If the table doesn't exist yet, create_all will handle it
         pass
 
+    try:
+        # Check profiles columns
+        result = conn.execute(text("PRAGMA table_info(profiles)"))
+        columns = [row[1] for row in result.fetchall()]
+
+        if columns: # Only alter if table exists
+            new_cols = {
+                "career_objective": "TEXT",
+                "total_experience": "VARCHAR",
+                "current_company": "VARCHAR",
+                "current_role": "VARCHAR",
+                "preferred_job_role": "VARCHAR",
+                "preferred_location": "VARCHAR",
+                "availability": "VARCHAR",
+                "occupation_category": "VARCHAR",
+                "technical_skills": "TEXT",
+                "soft_skills": "TEXT",
+                "languages": "TEXT",
+                "achievements": "TEXT",
+                "training": "TEXT",
+                "internships": "TEXT",
+                "licences": "TEXT",
+                "tools_and_equipment": "TEXT",
+                "additional_information": "TEXT",
+                "resume_quality": "VARCHAR"
+            }
+            for col, col_type in new_cols.items():
+                if col not in columns:
+                    conn.execute(text(f"ALTER TABLE profiles ADD COLUMN {col} {col_type}"))
+            conn.commit()
+    except Exception as e:
+        pass
+
 # Create database tables (if not already existing)
 Base.metadata.create_all(bind=engine)
 

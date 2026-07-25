@@ -55,6 +55,16 @@ async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_
     db_profile.location = extracted["location"]
     db_profile.professional_title = extracted["professional_title"]
     db_profile.professional_summary = extracted["professional_summary"]
+    db_profile.career_objective = extracted["career_objective"]
+    db_profile.total_experience = extracted["total_experience"]
+    db_profile.current_company = extracted["current_company"]
+    db_profile.current_role = extracted["current_role"]
+    db_profile.preferred_job_role = extracted["preferred_job_role"]
+    db_profile.preferred_location = extracted["preferred_location"]
+    db_profile.availability = extracted["availability"]
+    db_profile.occupation_category = extracted["occupation_category"]
+    db_profile.additional_information = extracted["additional_information"]
+    db_profile.resume_quality = extracted["resume_quality"]
 
     # Serialize lists to JSON strings
     db_profile.skills = json.dumps(extracted["skills"])
@@ -62,6 +72,14 @@ async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_
     db_profile.education = json.dumps(extracted["education"])
     db_profile.projects = json.dumps(extracted["projects"])
     db_profile.certifications = json.dumps(extracted["certifications"])
+    db_profile.technical_skills = json.dumps(extracted["technical_skills"])
+    db_profile.soft_skills = json.dumps(extracted["soft_skills"])
+    db_profile.languages = json.dumps(extracted["languages"])
+    db_profile.achievements = json.dumps(extracted["achievements"])
+    db_profile.training = json.dumps(extracted["training"])
+    db_profile.internships = json.dumps(extracted["internships"])
+    db_profile.licences = json.dumps(extracted["licences"])
+    db_profile.tools_and_equipment = json.dumps(extracted["tools_and_equipment"])
 
     db_profile.resume_filename = filename
     db_profile.resume_text = resume_text
@@ -99,6 +117,16 @@ def update_profile(profile_data: ProfileUpdate, db: Session = Depends(get_db)):
     db_profile.location = profile_data.location
     db_profile.professional_title = profile_data.professional_title
     db_profile.professional_summary = profile_data.professional_summary
+    db_profile.career_objective = profile_data.career_objective
+    db_profile.total_experience = profile_data.total_experience
+    db_profile.current_company = profile_data.current_company
+    db_profile.current_role = profile_data.current_role
+    db_profile.preferred_job_role = profile_data.preferred_job_role
+    db_profile.preferred_location = profile_data.preferred_location
+    db_profile.availability = profile_data.availability
+    db_profile.occupation_category = profile_data.occupation_category
+    db_profile.additional_information = profile_data.additional_information
+    db_profile.resume_quality = profile_data.resume_quality
 
     # Serialize lists to JSON strings
     db_profile.skills = json.dumps(profile_data.skills)
@@ -106,6 +134,14 @@ def update_profile(profile_data: ProfileUpdate, db: Session = Depends(get_db)):
     db_profile.education = json.dumps(profile_data.education)
     db_profile.projects = json.dumps(profile_data.projects)
     db_profile.certifications = json.dumps(profile_data.certifications)
+    db_profile.technical_skills = json.dumps(profile_data.technical_skills)
+    db_profile.soft_skills = json.dumps(profile_data.soft_skills)
+    db_profile.languages = json.dumps(profile_data.languages)
+    db_profile.achievements = json.dumps(profile_data.achievements)
+    db_profile.training = json.dumps(profile_data.training)
+    db_profile.internships = json.dumps(profile_data.internships)
+    db_profile.licences = json.dumps(profile_data.licences)
+    db_profile.tools_and_equipment = json.dumps(profile_data.tools_and_equipment)
 
     db.commit()
     db.refresh(db_profile)

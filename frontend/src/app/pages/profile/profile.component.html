@@ -44,81 +44,218 @@
       <span class="subtitle">Review and edit the extracted details. Changes will be saved locally.</span>
     </div>
 
-    <form (ngSubmit)="saveProfile()" #profileForm="ngForm" class="profile-form">
-      <div class="card-body form-grid">
-        <!-- Short Inputs Row -->
-        <div class="form-row split-row">
-          <div class="form-group">
-            <label for="fullName">Full Name</label>
-            <input type="text" id="fullName" name="fullName" [(ngModel)]="formName" required>
-          </div>
-          <div class="form-group">
-            <label for="professionalTitle">Professional Title</label>
-            <input type="text" id="professionalTitle" name="professionalTitle" [(ngModel)]="formTitle">
-          </div>
-        </div>
-
-        <div class="form-row split-row">
-          <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" [(ngModel)]="formEmail">
-          </div>
-          <div class="form-group">
-            <label for="phone">Phone</label>
-            <input type="text" id="phone" name="phone" [(ngModel)]="formPhone">
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="location">Location</label>
-            <input type="text" id="location" name="location" [(ngModel)]="formLocation">
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="professionalSummary">Professional Summary</label>
-            <textarea id="professionalSummary" name="professionalSummary" rows="4" [(ngModel)]="formSummary"></textarea>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="skills">Skills (comma-separated)</label>
-            <input type="text" id="skills" name="skills" [(ngModel)]="formSkills" placeholder="e.g., Python, FastAPI, Angular, Docker">
-          </div>
-        </div>
-
-        <!-- Long lists in textareas -->
-        <div class="form-row">
-          <div class="form-group">
-            <label for="workExperience">Work Experience (one entry per line)</label>
-            <textarea id="workExperience" name="workExperience" rows="5" [(ngModel)]="formExperience" placeholder="e.g., Software Engineer at TechCorp (2021-Present)"></textarea>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="education">Education (one entry per line)</label>
-            <textarea id="education" name="education" rows="3" [(ngModel)]="formEducation" placeholder="e.g., BS in Computer Science, State University"></textarea>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="projects">Projects (one entry per line)</label>
-            <textarea id="projects" name="projects" rows="4" [(ngModel)]="formProjects" placeholder="e.g., Personal Job Finder App"></textarea>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="certifications">Certifications (one entry per line)</label>
-            <textarea id="certifications" name="certifications" rows="3" [(ngModel)]="formCertifications" placeholder="e.g., AWS Certified Developer"></textarea>
-          </div>
-        </div>
+    <!-- Resume Scan Success Summary -->
+    <div *ngIf="success() && profile()" class="scan-summary-card">
+      <div class="summary-header">
+        <span class="alert-icon">✓</span>
+        <h3>Resume Scanned Successfully</h3>
       </div>
+      <div class="summary-details">
+        <div class="detail-row"><strong>Name:</strong> <span>{{ profile()?.full_name || 'Not detected' }}</span></div>
+        <div class="detail-row"><strong>Professional Title:</strong> <span>{{ profile()?.professional_title || 'Not detected' }}</span></div>
+        <div class="detail-row"><strong>Occupation Category:</strong> <span>{{ profile()?.occupation_category || 'Unknown' }}</span></div>
+        <div class="detail-row"><strong>Experience:</strong> <span>{{ profile()?.total_experience || 'Not detected' }}</span></div>
+        <div class="detail-row"><strong>Skills Found:</strong> <span>{{ (profile()?.skills || []).slice(0, 15).join(', ') }}{{ (profile()?.skills || []).length > 15 ? '...' : '' }}</span></div>
+        <div class="detail-row"><strong>Extraction Quality:</strong> <span class="badge-quality quality-{{ profile()?.resume_quality }}">{{ profile()?.resume_quality | titlecase }}</span></div>
+      </div>
+      <div *ngIf="profile()?.resume_quality === 'minimal' || !profile()?.email || !profile()?.work_experience?.length" class="missing-warning-box">
+        Some details could not be detected automatically. Please review and complete the profile manually.
+      </div>
+    </div>
+
+    <form (ngSubmit)="saveProfile()" #profileForm="ngForm" class="profile-form">
+      <!-- Section 1: Personal Information -->
+      <fieldset class="form-section card-fieldset">
+        <legend>Personal Information</legend>
+        <div class="form-grid">
+          <div class="form-row split-row">
+            <div class="form-group">
+              <label for="fullName">Full Name</label>
+              <input type="text" id="fullName" name="fullName" [(ngModel)]="formName" required>
+            </div>
+            <div class="form-group">
+              <label for="email">Email</label>
+              <input type="email" id="email" name="email" [(ngModel)]="formEmail">
+            </div>
+          </div>
+          <div class="form-row split-row">
+            <div class="form-group">
+              <label for="phone">Phone</label>
+              <input type="text" id="phone" name="phone" [(ngModel)]="formPhone">
+            </div>
+            <div class="form-group">
+              <label for="location">Location</label>
+              <input type="text" id="location" name="location" [(ngModel)]="formLocation">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="languages">Languages (comma-separated)</label>
+              <input type="text" id="languages" name="languages" [(ngModel)]="formLanguages" placeholder="e.g., English, Hindi, Telugu">
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Section 2: Professional Information -->
+      <fieldset class="form-section card-fieldset">
+        <legend>Professional Information</legend>
+        <div class="form-grid">
+          <div class="form-row split-row">
+            <div class="form-group">
+              <label for="professionalTitle">Professional Title</label>
+              <input type="text" id="professionalTitle" name="professionalTitle" [(ngModel)]="formTitle">
+            </div>
+            <div class="form-group">
+              <label for="occupationCategory">Occupation Category</label>
+              <select id="occupationCategory" name="occupationCategory" [(ngModel)]="formOccupationCategory">
+                <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row split-row">
+            <div class="form-group">
+              <label for="totalExperience">Total Experience</label>
+              <input type="text" id="totalExperience" name="totalExperience" [(ngModel)]="formTotalExperience" placeholder="e.g., 5 years">
+            </div>
+            <div class="form-group">
+              <label for="availability">Availability</label>
+              <input type="text" id="availability" name="availability" [(ngModel)]="formAvailability" placeholder="e.g., Immediate, 1 month notice">
+            </div>
+          </div>
+          <div class="form-row split-row">
+            <div class="form-group">
+              <label for="currentRole">Current Role</label>
+              <input type="text" id="currentRole" name="currentRole" [(ngModel)]="formCurrentRole">
+            </div>
+            <div class="form-group">
+              <label for="currentCompany">Current Company</label>
+              <input type="text" id="currentCompany" name="currentCompany" [(ngModel)]="formCurrentCompany">
+            </div>
+          </div>
+          <div class="form-row split-row">
+            <div class="form-group">
+              <label for="preferredJobRole">Preferred Job Role</label>
+              <input type="text" id="preferredJobRole" name="preferredJobRole" [(ngModel)]="formPreferredJobRole">
+            </div>
+            <div class="form-group">
+              <label for="preferredLocation">Preferred Location</label>
+              <input type="text" id="preferredLocation" name="preferredLocation" [(ngModel)]="formPreferredLocation">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="careerObjective">Career Objective</label>
+              <textarea id="careerObjective" name="careerObjective" rows="3" [(ngModel)]="formObjective"></textarea>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="professionalSummary">Professional Summary</label>
+              <textarea id="professionalSummary" name="professionalSummary" rows="4" [(ngModel)]="formSummary"></textarea>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Section 3: Skills -->
+      <fieldset class="form-section card-fieldset">
+        <legend>Skills</legend>
+        <div class="form-grid">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="technicalSkills">Technical / Domain Skills (comma-separated)</label>
+              <input type="text" id="technicalSkills" name="technicalSkills" [(ngModel)]="formTechnicalSkills" placeholder="e.g., Python, Electrical Wiring, Bookkeeping">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="skills">Non-Technical / General Skills (comma-separated)</label>
+              <input type="text" id="skills" name="skills" [(ngModel)]="formSkills" placeholder="e.g., Data Entry, MS Excel, Scheduling">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="softSkills">Soft Skills (comma-separated)</label>
+              <input type="text" id="softSkills" name="softSkills" [(ngModel)]="formSoftSkills" placeholder="e.g., Communication, Teamwork, Leadership">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="toolsAndEquipment">Tools and Equipment (comma-separated)</label>
+              <input type="text" id="toolsAndEquipment" name="toolsAndEquipment" [(ngModel)]="formToolsAndEquipment" placeholder="e.g., Multimeter, Tally, Stethoscope">
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Section 4: Background -->
+      <fieldset class="form-section card-fieldset">
+        <legend>Background</legend>
+        <div class="form-grid">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="workExperience">Work Experience (one entry per line)</label>
+              <textarea id="workExperience" name="workExperience" rows="5" [(ngModel)]="formExperience" placeholder="e.g., Software Engineer at TechCorp (2021-Present)"></textarea>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="education">Education (one entry per line)</label>
+              <textarea id="education" name="education" rows="3" [(ngModel)]="formEducation" placeholder="e.g., BS in Computer Science, State University"></textarea>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="projects">Projects (one entry per line)</label>
+              <textarea id="projects" name="projects" rows="4" [(ngModel)]="formProjects" placeholder="e.g., Personal Job Finder App"></textarea>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="training">Training (one entry per line)</label>
+              <textarea id="training" name="training" rows="3" [(ngModel)]="formTraining" placeholder="e.g., Electrician Safety Certification Course"></textarea>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="internships">Internships and Apprenticeships (one entry per line)</label>
+              <textarea id="internships" name="internships" rows="3" [(ngModel)]="formInternships" placeholder="e.g., Apprentice Electrician at Apex Wiring (2019-2020)"></textarea>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="certifications">Certifications (one entry per line)</label>
+              <textarea id="certifications" name="certifications" rows="3" [(ngModel)]="formCertifications" placeholder="e.g., AWS Certified Developer"></textarea>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="licences">Licenses (one entry per line)</label>
+              <textarea id="licences" name="licences" rows="3" [(ngModel)]="formLicences" placeholder="e.g., Commercial Driver's License (CDL)"></textarea>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="achievements">Achievements and Awards (one entry per line)</label>
+              <textarea id="achievements" name="achievements" rows="3" [(ngModel)]="formAchievements" placeholder="e.g., Employee of the Month (June 2022)"></textarea>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Section 5: Additional Information -->
+      <fieldset class="form-section card-fieldset">
+        <legend>Additional Information</legend>
+        <div class="form-grid">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="additionalInfo">Additional Information & Unclassified Content</label>
+              <textarea id="additionalInfo" name="additionalInfo" rows="6" [(ngModel)]="formAdditionalInformation" placeholder="e.g., References, Hobbies, Publications, Volunteering details"></textarea>
+            </div>
+          </div>
+        </div>
+      </fieldset>
 
       <div class="card-footer form-actions">
         <button type="button" class="btn btn-secondary" (click)="resetChanges()" [disabled]="saving() || loading()">Reset Changes</button>

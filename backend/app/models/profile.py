@@ -20,6 +20,29 @@ class Profile(Base):
     projects = Column(Text, nullable=True)         # e.g., '["Job Finder App"]'
     certifications = Column(Text, nullable=True)   # e.g., '["AWS Certified Developer"]'
 
+    # New fields for expanded resume parsing support
+    career_objective = Column(Text, nullable=True)
+    total_experience = Column(String, nullable=True)
+    current_company = Column(String, nullable=True)
+    current_role = Column(String, nullable=True)
+    preferred_job_role = Column(String, nullable=True)
+    preferred_location = Column(String, nullable=True)
+    availability = Column(String, nullable=True)
+    occupation_category = Column(String, nullable=True)
+
+    # Expanded list fields stored as JSON strings
+    technical_skills = Column(Text, nullable=True)
+    soft_skills = Column(Text, nullable=True)
+    languages = Column(Text, nullable=True)
+    achievements = Column(Text, nullable=True)
+    training = Column(Text, nullable=True)
+    internships = Column(Text, nullable=True)
+    licences = Column(Text, nullable=True)
+    tools_and_equipment = Column(Text, nullable=True)
+
+    additional_information = Column(Text, nullable=True)
+    resume_quality = Column(String, nullable=True)
+
     resume_filename = Column(String, nullable=True)
     resume_text = Column(Text, nullable=True)
 

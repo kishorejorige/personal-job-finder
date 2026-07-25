@@ -20,6 +20,14 @@ export class ProfileComponent implements OnInit {
   protected readonly success = signal<string | null>(null);
   protected selectedFileName = '';
 
+  // Categories list
+  protected readonly categories = [
+    'IT and Software', 'Engineering', 'Electronics and Electrical', 'Accounting and Finance',
+    'Sales and Marketing', 'Administration', 'Customer Service', 'Education', 'Healthcare',
+    'Logistics and Operations', 'Hospitality', 'Skilled Trades', 'Manufacturing', 'Retail',
+    'Human Resources', 'Creative and Design', 'Legal', 'Fresher or Student', 'Other', 'Unknown'
+  ];
+
   // Form bindable fields
   protected formName = '';
   protected formEmail = '';
@@ -32,6 +40,24 @@ export class ProfileComponent implements OnInit {
   protected formEducation = '';
   protected formProjects = '';
   protected formCertifications = '';
+
+  protected formObjective = '';
+  protected formTotalExperience = '';
+  protected formCurrentCompany = '';
+  protected formCurrentRole = '';
+  protected formPreferredJobRole = '';
+  protected formPreferredLocation = '';
+  protected formAvailability = '';
+  protected formOccupationCategory = 'Unknown';
+  protected formTechnicalSkills = '';
+  protected formSoftSkills = '';
+  protected formLanguages = '';
+  protected formAchievements = '';
+  protected formTraining = '';
+  protected formInternships = '';
+  protected formLicences = '';
+  protected formToolsAndEquipment = '';
+  protected formAdditionalInformation = '';
 
   ngOnInit(): void {
     this.loadProfile();
@@ -67,6 +93,24 @@ export class ProfileComponent implements OnInit {
     this.formEducation = (data.education || []).join('\n');
     this.formProjects = (data.projects || []).join('\n');
     this.formCertifications = (data.certifications || []).join('\n');
+
+    this.formObjective = data.career_objective || '';
+    this.formTotalExperience = data.total_experience || '';
+    this.formCurrentCompany = data.current_company || '';
+    this.formCurrentRole = data.current_role || '';
+    this.formPreferredJobRole = data.preferred_job_role || '';
+    this.formPreferredLocation = data.preferred_location || '';
+    this.formAvailability = data.availability || '';
+    this.formOccupationCategory = data.occupation_category || 'Unknown';
+    this.formTechnicalSkills = (data.technical_skills || []).join(', ');
+    this.formSoftSkills = (data.soft_skills || []).join(', ');
+    this.formLanguages = (data.languages || []).join(', ');
+    this.formAchievements = (data.achievements || []).join('\n');
+    this.formTraining = (data.training || []).join('\n');
+    this.formInternships = (data.internships || []).join('\n');
+    this.formLicences = (data.licences || []).join('\n');
+    this.formToolsAndEquipment = (data.tools_and_equipment || []).join(', ');
+    this.formAdditionalInformation = data.additional_information || '';
   }
 
   onFileSelected(event: Event): void {
@@ -149,6 +193,38 @@ export class ProfileComponent implements OnInit {
       .map(i => i.trim())
       .filter(i => i.length > 0);
 
+    const technical_skills = this.formTechnicalSkills.split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    const soft_skills = this.formSoftSkills.split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    const languages = this.formLanguages.split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    const achievements = this.formAchievements.split('\n')
+      .map(i => i.trim())
+      .filter(i => i.length > 0);
+
+    const training = this.formTraining.split('\n')
+      .map(i => i.trim())
+      .filter(i => i.length > 0);
+
+    const internships = this.formInternships.split('\n')
+      .map(i => i.trim())
+      .filter(i => i.length > 0);
+
+    const licences = this.formLicences.split('\n')
+      .map(i => i.trim())
+      .filter(i => i.length > 0);
+
+    const tools_and_equipment = this.formToolsAndEquipment.split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
     const updateData: ProfileUpdate = {
       full_name: this.formName.trim(),
       email: this.formEmail.trim(),
@@ -160,7 +236,25 @@ export class ProfileComponent implements OnInit {
       work_experience,
       education,
       projects,
-      certifications
+      certifications,
+
+      career_objective: this.formObjective.trim(),
+      total_experience: this.formTotalExperience.trim(),
+      current_company: this.formCurrentCompany.trim(),
+      current_role: this.formCurrentRole.trim(),
+      preferred_job_role: this.formPreferredJobRole.trim(),
+      preferred_location: this.formPreferredLocation.trim(),
+      availability: this.formAvailability.trim(),
+      occupation_category: this.formOccupationCategory.trim(),
+      technical_skills,
+      soft_skills,
+      languages,
+      achievements,
+      training,
+      internships,
+      licences,
+      tools_and_equipment,
+      additional_information: this.formAdditionalInformation.trim()
     };
 
     this.profileService.updateProfile(updateData).subscribe({

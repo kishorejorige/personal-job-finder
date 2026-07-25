@@ -155,6 +155,7 @@
 
 .form-group input[type="text"],
 .form-group input[type="email"],
+.form-group select,
 .form-group textarea {
   font-family: inherit;
   font-size: 0.95rem;
@@ -168,6 +169,7 @@
 
 .form-group input[type="text"]:focus,
 .form-group input[type="email"]:focus,
+.form-group select:focus,
 .form-group textarea:focus {
   outline: none;
   border-color: var(--primary-color);

@@ -9,6 +9,16 @@ class ProfileBase(BaseModel):
     location: Optional[str] = None
     professional_title: Optional[str] = None
     professional_summary: Optional[str] = None
+    career_objective: Optional[str] = None
+    total_experience: Optional[str] = None
+    current_company: Optional[str] = None
+    current_role: Optional[str] = None
+    preferred_job_role: Optional[str] = None
+    preferred_location: Optional[str] = None
+    availability: Optional[str] = None
+    occupation_category: Optional[str] = None
+    additional_information: Optional[str] = None
+    resume_quality: Optional[str] = None
 
 class ProfileUpdate(ProfileBase):
     skills: Optional[List[str]] = []
@@ -16,6 +26,14 @@ class ProfileUpdate(ProfileBase):
     education: Optional[List[str]] = []
     projects: Optional[List[str]] = []
     certifications: Optional[List[str]] = []
+    technical_skills: Optional[List[str]] = []
+    soft_skills: Optional[List[str]] = []
+    languages: Optional[List[str]] = []
+    achievements: Optional[List[str]] = []
+    training: Optional[List[str]] = []
+    internships: Optional[List[str]] = []
+    licences: Optional[List[str]] = []
+    tools_and_equipment: Optional[List[str]] = []
 
     @field_validator('email')
     @classmethod
@@ -33,12 +51,25 @@ class ProfileResponse(ProfileBase):
     education: List[str] = []
     projects: List[str] = []
     certifications: List[str] = []
+    technical_skills: List[str] = []
+    soft_skills: List[str] = []
+    languages: List[str] = []
+    achievements: List[str] = []
+    training: List[str] = []
+    internships: List[str] = []
+    licences: List[str] = []
+    tools_and_equipment: List[str] = []
     resume_filename: Optional[str] = None
     resume_text: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
-    @field_validator('skills', 'work_experience', 'education', 'projects', 'certifications', mode='before')
+    @field_validator(
+        'skills', 'work_experience', 'education', 'projects', 'certifications',
+        'technical_skills', 'soft_skills', 'languages', 'achievements',
+        'training', 'internships', 'licences', 'tools_and_equipment',
+        mode='before'
+    )
     @classmethod
     def parse_json_strings(cls, v):
         if isinstance(v, str):
