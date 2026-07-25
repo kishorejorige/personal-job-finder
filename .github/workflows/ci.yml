@@ -10,6 +10,9 @@ jobs:
   backend-test:
     name: Backend CI
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -19,11 +22,12 @@ jobs:
         with:
           python-version: '3.13'
           cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
 
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+          pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Pip check
         run: |
@@ -31,17 +35,17 @@ jobs:
 
       - name: Ruff Check
         run: |
-          python -m ruff check backend/
+          python -m ruff check .
 
       - name: Ruff Format Check
         run: |
-          python -m ruff format --check backend/
+          python -m ruff format --check .
 
       - name: Run Pytest
         env:
-          PYTHONPATH: backend
+          PYTHONPATH: .
         run: |
-          python -m pytest backend/
+          python -m pytest tests
 
   frontend-build:
     name: Frontend CI
