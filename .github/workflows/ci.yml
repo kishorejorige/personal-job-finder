@@ -42,7 +42,7 @@ jobs:
 
       - name: Run Pytest
         env:
-          PYTHONPATH: .
+          PYTHONPATH: ${{ github.workspace }}/backend
           APP_ENV: testing
           DATABASE_URL: sqlite:///./test_ci.db
         run: python -m pytest tests

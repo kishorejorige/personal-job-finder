@@ -25,7 +25,8 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     if settings.DATABASE_URL.startswith("sqlite"):
         cursor = dbapi_connection.cursor()
         try:
-            cursor.execute("PRAGMA journal_mode=WAL")
+            if settings.APP_ENV != "testing":
+                cursor.execute("PRAGMA journal_mode=WAL")
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.execute("PRAGMA busy_timeout=5000")
         except Exception:
