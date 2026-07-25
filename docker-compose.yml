@@ -1,0 +1,40 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: job_finder_backend
+    restart: unless-stopped
+    expose:
+      - "8010"
+    ports:
+      - "8010:8010"
+    environment:
+      - APP_ENV=production
+      - DATABASE_URL=sqlite:////app/data/jobs.db
+      - CORS_ORIGINS=http://localhost:4200,http://127.0.0.1:4200
+      - WEB_WORKERS=1
+    volumes:
+      - sqlite-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8010/api/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: job_finder_frontend
+    restart: unless-stopped
+    ports:
+      - "4200:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  sqlite-data:
+    name: personal_job_finder_sqlite_data

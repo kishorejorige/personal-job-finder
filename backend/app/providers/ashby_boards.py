@@ -17,6 +17,6 @@ ASHBY_BOARDS = [
     {
         "company_name": "Placeholder Company",
         "job_board_name": "placeholder-company",
-        "enabled": False, # Disabled placeholder
-    }
+        "enabled": False,  # Disabled placeholder
+    },
 ]

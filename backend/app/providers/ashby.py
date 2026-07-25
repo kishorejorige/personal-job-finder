@@ -1,15 +1,18 @@
-import httpx
 import logging
-from typing import List, Dict, Any
-from app.providers.base import JobProvider, ProviderFetchResult
+from typing import Any
+
+import httpx
+
 from app.providers.ashby_boards import ASHBY_BOARDS
+from app.providers.base import JobProvider, ProviderFetchResult
 
 logger = logging.getLogger(__name__)
+
 
 class AshbyProvider(JobProvider):
     provider_name = "ashby"
 
-    def __init__(self, boards: List[Dict[str, Any]] = None):
+    def __init__(self, boards: list[dict[str, Any]] = None):
         self.boards = boards or ASHBY_BOARDS
 
     async def fetch_jobs(self) -> ProviderFetchResult:
@@ -42,7 +45,7 @@ class AshbyProvider(JobProvider):
                             if attempt == 1:
                                 errors.append({"board": board_name, "message": err_msg})
                     except (httpx.RequestError, httpx.TimeoutException) as e:
-                        err_msg = f"Network failure: {str(e)}"
+                        err_msg = f"Network failure: {e!s}"
                         if attempt == 1:
                             errors.append({"board": board_name, "message": err_msg})
 
@@ -55,14 +58,14 @@ class AshbyProvider(JobProvider):
 
                         # Location and Remote Status mapping
                         location = job.get("location", "Unknown")
-                        
+
                         # Determine remote status
                         remote_status = "unknown"
                         is_remote_val = job.get("isRemote")
                         if isinstance(is_remote_val, bool):
                             remote_status = "remote" if is_remote_val else "onsite"
-                        
-                        workplace = job.get("workplaceType", "").lower()
+
+                        workplace = (job.get("workplaceType") or "").strip().lower()
                         if workplace in ("remote", "hybrid", "onsite"):
                             remote_status = workplace
 
@@ -92,7 +95,7 @@ class AshbyProvider(JobProvider):
                             "source": self.provider_name,
                             "source_board": board_name,
                             "original_url": original_url,
-                            "posted_date": job.get("publishedAt")
+                            "posted_date": job.get("publishedAt"),
                         }
                         normalized_jobs.append(normalized)
                 else:
@@ -105,5 +108,5 @@ class AshbyProvider(JobProvider):
             sources_checked=sources_checked,
             sources_succeeded=sources_succeeded,
             sources_failed=sources_failed,
-            errors=errors
+            errors=errors,
         )

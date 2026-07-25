@@ -1,74 +1,87 @@
 import json
-from typing import List, Optional
-from pydantic import BaseModel, field_validator, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, field_validator
+
 
 class ProfileBase(BaseModel):
-    full_name: Optional[str] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    location: Optional[str] = None
-    professional_title: Optional[str] = None
-    professional_summary: Optional[str] = None
-    career_objective: Optional[str] = None
-    total_experience: Optional[str] = None
-    current_company: Optional[str] = None
-    current_role: Optional[str] = None
-    preferred_job_role: Optional[str] = None
-    preferred_location: Optional[str] = None
-    availability: Optional[str] = None
-    occupation_category: Optional[str] = None
-    additional_information: Optional[str] = None
-    resume_quality: Optional[str] = None
+    full_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    location: str | None = None
+    professional_title: str | None = None
+    professional_summary: str | None = None
+    career_objective: str | None = None
+    total_experience: str | None = None
+    current_company: str | None = None
+    current_role: str | None = None
+    preferred_job_role: str | None = None
+    preferred_location: str | None = None
+    availability: str | None = None
+    occupation_category: str | None = None
+    additional_information: str | None = None
+    resume_quality: str | None = None
+
 
 class ProfileUpdate(ProfileBase):
-    skills: Optional[List[str]] = []
-    work_experience: Optional[List[str]] = []
-    education: Optional[List[str]] = []
-    projects: Optional[List[str]] = []
-    certifications: Optional[List[str]] = []
-    technical_skills: Optional[List[str]] = []
-    soft_skills: Optional[List[str]] = []
-    languages: Optional[List[str]] = []
-    achievements: Optional[List[str]] = []
-    training: Optional[List[str]] = []
-    internships: Optional[List[str]] = []
-    licences: Optional[List[str]] = []
-    tools_and_equipment: Optional[List[str]] = []
+    skills: list[str] | None = []
+    work_experience: list[str] | None = []
+    education: list[str] | None = []
+    projects: list[str] | None = []
+    certifications: list[str] | None = []
+    technical_skills: list[str] | None = []
+    soft_skills: list[str] | None = []
+    languages: list[str] | None = []
+    achievements: list[str] | None = []
+    training: list[str] | None = []
+    internships: list[str] | None = []
+    licences: list[str] | None = []
+    tools_and_equipment: list[str] | None = []
 
-    @field_validator('email')
+    @field_validator("email")
     @classmethod
-    def validate_email_format(cls, v: Optional[str]) -> Optional[str]:
+    def validate_email_format(cls, v: str | None) -> str | None:
         if v:
             v = v.strip()
             if v and ("@" not in v or "." not in v):
                 raise ValueError("Invalid email format")
         return v
 
+
 class ProfileResponse(ProfileBase):
     id: int
-    skills: List[str] = []
-    work_experience: List[str] = []
-    education: List[str] = []
-    projects: List[str] = []
-    certifications: List[str] = []
-    technical_skills: List[str] = []
-    soft_skills: List[str] = []
-    languages: List[str] = []
-    achievements: List[str] = []
-    training: List[str] = []
-    internships: List[str] = []
-    licences: List[str] = []
-    tools_and_equipment: List[str] = []
-    resume_filename: Optional[str] = None
-    resume_text: Optional[str] = None
+    skills: list[str] = []
+    work_experience: list[str] = []
+    education: list[str] = []
+    projects: list[str] = []
+    certifications: list[str] = []
+    technical_skills: list[str] = []
+    soft_skills: list[str] = []
+    languages: list[str] = []
+    achievements: list[str] = []
+    training: list[str] = []
+    internships: list[str] = []
+    licences: list[str] = []
+    tools_and_equipment: list[str] = []
+    resume_filename: str | None = None
+    resume_text: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator(
-        'skills', 'work_experience', 'education', 'projects', 'certifications',
-        'technical_skills', 'soft_skills', 'languages', 'achievements',
-        'training', 'internships', 'licences', 'tools_and_equipment',
-        mode='before'
+        "skills",
+        "work_experience",
+        "education",
+        "projects",
+        "certifications",
+        "technical_skills",
+        "soft_skills",
+        "languages",
+        "achievements",
+        "training",
+        "internships",
+        "licences",
+        "tools_and_equipment",
+        mode="before",
     )
     @classmethod
     def parse_json_strings(cls, v):
@@ -85,6 +98,7 @@ class ProfileResponse(ProfileBase):
         elif v is None:
             return []
         return v
+
 
 class ResumeUploadResponse(BaseModel):
     message: str

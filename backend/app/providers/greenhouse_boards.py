@@ -21,5 +21,5 @@ GREENHOUSE_BOARDS = [
     {
         "company_name": "Docker",
         "board_token": "docker",
-    }
+    },
 ]

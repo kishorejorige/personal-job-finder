@@ -26,6 +26,6 @@ LEVER_SITES = [
         "company_name": "Example Company EU",
         "site_name": "example-company-eu",
         "region": "eu",
-        "enabled": False, # Disabled placeholder for EU region site
-    }
+        "enabled": False,  # Disabled placeholder for EU region site
+    },
 ]

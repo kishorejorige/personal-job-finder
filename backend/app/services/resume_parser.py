@@ -1,10 +1,12 @@
 import io
+
 import docx
 import pypdf
 
+
 class ResumeParsingError(Exception):
     """Custom exception raised when resume parsing fails."""
-    pass
+
 
 def extract_pdf_text(file_bytes: bytes) -> str:
     try:
@@ -17,7 +19,8 @@ def extract_pdf_text(file_bytes: bytes) -> str:
                 text += page_text + "\n"
         return text
     except Exception as e:
-        raise ResumeParsingError(f"Failed to parse PDF resume: {str(e)}")
+        raise ResumeParsingError(f"Failed to parse PDF resume: {e!s}")
+
 
 def extract_docx_text(file_bytes: bytes) -> str:
     try:
@@ -37,7 +40,8 @@ def extract_docx_text(file_bytes: bytes) -> str:
         full_text = "\n".join(paragraphs_text + table_text)
         return full_text
     except Exception as e:
-        raise ResumeParsingError(f"Failed to parse DOCX resume: {str(e)}")
+        raise ResumeParsingError(f"Failed to parse DOCX resume: {e!s}")
+
 
 def extract_txt_text(file_bytes: bytes) -> str:
     encodings = ["utf-8", "latin-1", "utf-16", "utf-16le", "utf-16be"]
@@ -47,6 +51,7 @@ def extract_txt_text(file_bytes: bytes) -> str:
         except UnicodeDecodeError:
             continue
     raise ResumeParsingError("Failed to decode TXT resume. Unsupported file encoding.")
+
 
 def extract_resume_text(filename: str, file_bytes: bytes) -> str:
     if not file_bytes or len(file_bytes.strip()) == 0:

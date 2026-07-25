@@ -1,0 +1,85 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  backend-test:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+
+      - name: Pip check
+        run: |
+          pip check
+
+      - name: Ruff Check
+        run: |
+          python -m ruff check backend/
+
+      - name: Ruff Format Check
+        run: |
+          python -m ruff format --check backend/
+
+      - name: Run Pytest
+        env:
+          PYTHONPATH: backend
+        run: |
+          python -m pytest backend/
+
+  frontend-build:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Dependencies
+        run: |
+          npm --prefix frontend ci
+
+      - name: Build Angular Application
+        run: |
+          npm --prefix frontend run build
+
+  docker-validate:
+    name: Docker CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose Configuration
+        run: |
+          docker compose config
+
+      - name: Build Backend Docker Image
+        run: |
+          docker build -t job-finder-backend:test ./backend
+
+      - name: Build Frontend Docker Image
+        run: |
+          docker build -t job-finder-frontend:test ./frontend

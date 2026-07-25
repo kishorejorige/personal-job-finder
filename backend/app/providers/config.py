@@ -1,10 +1,12 @@
 import os
 
+
 def get_bool_env(name: str, default: bool) -> bool:
     val = os.getenv(name)
     if val is None:
         return default
     return val.lower() in ("true", "1", "yes", "on")
+
 
 PROVIDER_SETTINGS = {
     "greenhouse": {"enabled": get_bool_env("ENABLE_GREENHOUSE", True)},

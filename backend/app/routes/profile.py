@@ -1,44 +1,74 @@
 import json
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status
+import re
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
+
+from app.config import settings
 from app.database import get_db
 from app.models.profile import Profile
 from app.schemas.profile import ProfileResponse, ProfileUpdate, ResumeUploadResponse
-from app.services.resume_parser import extract_resume_text, ResumeParsingError
 from app.services.profile_extractor import extract_profile_from_text
+from app.services.resume_parser import ResumeParsingError, extract_resume_text
 
 router = APIRouter(prefix="/api/profile", tags=["Profile"])
 
-MAX_FILE_SIZE = 2 * 1024 * 1024  # 2 MB
 ALLOWED_EXTENSIONS = {"pdf", "docx", "txt"}
+ALLOWED_MIME_TYPES = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "text/plain",
+    "application/octet-stream",
+}
+
 
 @router.post("/upload-resume", response_model=ResumeUploadResponse)
 async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    # 1. Validate file extension
+    # 1. Validate file extension and MIME type
     filename = file.filename or ""
     ext = filename.lower().split(".")[-1]
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only PDF, DOCX, and TXT resumes are supported."
+            detail="Only PDF, DOCX, and TXT resumes are supported.",
         )
 
-    # 2. Validate file size
-    contents = await file.read()
-    if len(contents) > MAX_FILE_SIZE:
+    content_type = file.content_type or ""
+    if content_type and content_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The uploaded resume is larger than 2 MB."
+            detail="Invalid file format (unsupported media type).",
         )
+
+    # Sanitize filename
+    filename = re.sub(r"[^a-zA-Z0-9_.-]", "_", filename)
+
+    # 2. Validate file size (empty and max limits)
+    contents = await file.read()
+    if len(contents) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The uploaded file is empty.",
+        )
+
+    max_bytes = settings.MAX_RESUME_SIZE_MB * 1024 * 1024
+    if len(contents) > max_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"The uploaded resume is larger than {settings.MAX_RESUME_SIZE_MB} MB.",
+        )
+
+    # Validate file signatures to prevent masquerading executables
+    if ext == "pdf" and not contents.startswith(b"%PDF"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid PDF file content.")
+    if ext == "docx" and not contents.startswith(b"PK\x03\x04"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid DOCX file content.")
 
     # 3. Extract text from resume
     try:
         resume_text = extract_resume_text(filename, contents)
     except ResumeParsingError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     # 4. Extract profile fields
     extracted = extract_profile_from_text(resume_text)
@@ -89,8 +119,9 @@ async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_
 
     return {
         "message": "Resume uploaded and scanned successfully.",
-        "profile": db_profile
+        "profile": db_profile,
     }
+
 
 @router.get("", response_model=ProfileResponse)
 def get_profile(db: Session = Depends(get_db)):
@@ -98,18 +129,16 @@ def get_profile(db: Session = Depends(get_db)):
     if not db_profile:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No profile found. Please upload a resume first."
+            detail="No profile found. Please upload a resume first.",
         )
     return db_profile
+
 
 @router.put("", response_model=ProfileResponse)
 def update_profile(profile_data: ProfileUpdate, db: Session = Depends(get_db)):
     db_profile = db.query(Profile).first()
     if not db_profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No profile found to update."
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No profile found to update.")
 
     db_profile.full_name = profile_data.full_name
     db_profile.email = profile_data.email

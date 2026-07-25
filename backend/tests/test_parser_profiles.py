@@ -1,8 +1,8 @@
-import pytest
 import json
-from app.services.profile_extractor import extract_profile_from_text
+
 from app.models.profile import Profile
 from app.services.job_matcher import calculate_match
+from app.services.profile_extractor import extract_profile_from_text
 
 # 1. IT Developer Resume
 IT_RESUME = """
@@ -233,6 +233,7 @@ PUBLICATIONS AND PATENTS
 Co-authored paper on classroom management strategies in 2023.
 """
 
+
 def test_it_developer_resume():
     prof = extract_profile_from_text(IT_RESUME)
     assert prof["full_name"] == "Kishore Kumar"
@@ -248,6 +249,7 @@ def test_it_developer_resume():
     assert "Software Engineer" in prof["current_role"]
     assert prof["resume_quality"] == "complete"
 
+
 def test_accountant_resume():
     prof = extract_profile_from_text(ACCOUNTANT_RESUME)
     assert prof["full_name"] == "Anjali Sharma"
@@ -260,6 +262,7 @@ def test_accountant_resume():
     assert "Senior Accountant" in prof["current_role"]
     assert prof["resume_quality"] == "complete"
 
+
 def test_sales_resume():
     prof = extract_profile_from_text(SALES_RESUME)
     assert prof["full_name"] == "Rohan Verma"
@@ -271,6 +274,7 @@ def test_sales_resume():
     assert "Sales Executive" in prof["current_role"]
     assert prof["resume_quality"] == "complete"
 
+
 def test_teacher_resume():
     prof = extract_profile_from_text(TEACHER_RESUME)
     assert prof["full_name"] == "Saritha Reddy"
@@ -280,6 +284,7 @@ def test_teacher_resume():
     assert "Greenvalley High School" in prof["current_company"]
     assert "Teacher" in prof["current_role"]
     assert prof["resume_quality"] == "complete"
+
 
 def test_technician_resume():
     prof = extract_profile_from_text(TECHNICIAN_RESUME)
@@ -292,6 +297,7 @@ def test_technician_resume():
     assert "Technician" in prof["current_role"]
     assert prof["resume_quality"] == "complete"
 
+
 def test_fresher_resume():
     prof = extract_profile_from_text(FRESHER_RESUME)
     assert prof["full_name"] == "Amit Patel"
@@ -299,6 +305,7 @@ def test_fresher_resume():
     assert "Communication" in prof["soft_skills"]
     assert prof["occupation_category"] == "Fresher or Student"
     assert prof["resume_quality"] == "complete"
+
 
 def test_headingless_resume():
     prof = extract_profile_from_text(HEADINGLESS_RESUME)
@@ -309,6 +316,7 @@ def test_headingless_resume():
     assert "Data Entry" in prof["technical_skills"]
     assert "Bookkeeping" in prof["technical_skills"]
 
+
 def test_emailless_resume():
     prof = extract_profile_from_text(EMAILLESS_RESUME)
     assert prof["email"] == ""
@@ -317,12 +325,14 @@ def test_emailless_resume():
     assert "Route Planning" in prof["technical_skills"]
     assert prof["resume_quality"] == "partial"
 
+
 def test_experienceless_resume():
     prof = extract_profile_from_text(EXPERIENCELESS_RESUME)
     assert prof["email"] == "deepa@example.com"
     assert len(prof["work_experience"]) == 0
     assert "Customer Support" in prof["technical_skills"]
     assert prof["resume_quality"] == "partial"
+
 
 def test_unknown_section_resume():
     prof = extract_profile_from_text(UNKNOWN_SECTION_RESUME)
@@ -332,6 +342,7 @@ def test_unknown_section_resume():
     assert "Reading fiction, playing badminton" in prof["additional_information"]
     assert "Publications And Patents" in prof["additional_information"]
     assert "Co-authored paper on classroom management" in prof["additional_information"]
+
 
 def test_non_it_job_matching():
     # Setup dummy profile representing an accountant
@@ -343,7 +354,7 @@ def test_non_it_job_matching():
         technical_skills=json.dumps(["Accounting", "Tally"]),
         soft_skills=json.dumps(["Communication"]),
         work_experience=json.dumps(["Accountant at ABC Finance (2020-Present)"]),
-        location="Delhi"
+        location="Delhi",
     )
 
     # 1. Matching Accounting Job should score high
@@ -353,7 +364,7 @@ def test_non_it_job_matching():
         job_skills=["Accounting", "Tally", "GST"],
         job_remote="remote",
         job_location="Mumbai",
-        profile=prof
+        profile=prof,
     )
     assert res_acct["match_score"] > 70
     assert "Accounting" in res_acct["matched_skills"]
@@ -366,6 +377,6 @@ def test_non_it_job_matching():
         job_skills=["Python", "FastAPI", "Docker"],
         job_remote="onsite",
         job_location="Bangalore",
-        profile=prof
+        profile=prof,
     )
     assert res_soft["match_score"] < 40

@@ -1,15 +1,17 @@
-import httpx
 import logging
-from typing import List, Dict, Any
+
+import httpx
+
 from app.providers.base import JobProvider, ProviderFetchResult
 from app.providers.greenhouse_boards import GREENHOUSE_BOARDS
 
 logger = logging.getLogger(__name__)
 
+
 class GreenhouseProvider(JobProvider):
     provider_name = "greenhouse"
 
-    def __init__(self, boards: List[Dict[str, str]] = None):
+    def __init__(self, boards: list[dict[str, str]] = None):
         self.boards = boards or GREENHOUSE_BOARDS
 
     async def fetch_jobs(self) -> ProviderFetchResult:
@@ -45,7 +47,7 @@ class GreenhouseProvider(JobProvider):
                             if attempt == 1:
                                 errors.append({"board": token, "message": err_msg})
                     except (httpx.RequestError, httpx.TimeoutException) as e:
-                        err_msg = f"Network failure: {str(e)}"
+                        err_msg = f"Network failure: {e!s}"
                         if attempt == 1:
                             errors.append({"board": token, "message": err_msg})
 
@@ -64,7 +66,7 @@ class GreenhouseProvider(JobProvider):
                             "description": job.get("content", ""),  # HTML is cleaned in the job_parser service
                             "posted_date": job.get("updated_at"),
                             "source": self.provider_name,
-                            "source_board": token
+                            "source_board": token,
                         }
                         normalized_jobs.append(normalized)
                 else:
@@ -77,5 +79,5 @@ class GreenhouseProvider(JobProvider):
             sources_checked=sources_checked,
             sources_succeeded=sources_succeeded,
             sources_failed=sources_failed,
-            errors=errors
+            errors=errors,
         )

@@ -1,16 +1,19 @@
-import httpx
-import logging
 import json
+import logging
 import re
 import xml.etree.ElementTree as ET
-from urllib.parse import urljoin, urlparse
 from html.parser import HTMLParser
-from typing import List, Dict, Any
+from typing import Any
+from urllib.parse import urljoin, urlparse
+
+import httpx
+
 from app.providers.base import JobProvider, ProviderFetchResult
 from app.providers.company_career_sites import COMPANY_CAREER_SITES
 from app.services.job_parser import detect_remote_status
 
 logger = logging.getLogger(__name__)
+
 
 # URL Safety Check: only allow http/https, reject javascript:, data:, file:
 def is_safe_url(url: str) -> bool:
@@ -18,6 +21,7 @@ def is_safe_url(url: str) -> bool:
         return False
     parsed = urlparse(url)
     return parsed.scheme in ("http", "https")
+
 
 # HTML Parser Node tree structure to support generic CSS-like selector queries
 class HTMLNode:
@@ -34,17 +38,17 @@ class HTMLNode:
     def match_selector(self, selector: str) -> bool:
         if not selector:
             return False
-        
+
         # Simple class selector: e.g. "div.job-card" or ".job-title"
         if "." in selector:
             parts = selector.split(".")
             tag_part = parts[0].lower()
             class_part = parts[1].lower()
-            
+
             # Verify tag part
             if tag_part and self.tag != tag_part:
                 return False
-            
+
             # Verify class part
             classes = self.attrs.get("class", "").lower().split()
             if class_part not in classes:
@@ -54,7 +58,7 @@ class HTMLNode:
             # Tag only: e.g. "a" or "h3"
             return self.tag == selector.lower()
 
-    def find_all(self, selector: str) -> List['HTMLNode']:
+    def find_all(self, selector: str) -> list["HTMLNode"]:
         results = []
         if self.match_selector(selector):
             results.append(self)
@@ -62,7 +66,7 @@ class HTMLNode:
             results.extend(child.find_all(selector))
         return results
 
-    def find(self, selector: str) -> 'HTMLNode':
+    def find(self, selector: str) -> "HTMLNode":
         if self.match_selector(selector):
             return self
         for child in self.children:
@@ -70,6 +74,7 @@ class HTMLNode:
             if found:
                 return found
         return None
+
 
 class SimpleTreeParser(HTMLParser):
     def __init__(self):
@@ -92,10 +97,11 @@ class SimpleTreeParser(HTMLParser):
         if self.current:
             self.current.text += data
 
+
 class CompanyCareersProvider(JobProvider):
     provider_name = "company_careers"
 
-    def __init__(self, sites: List[Dict[str, Any]] = None):
+    def __init__(self, sites: list[dict[str, Any]] = None):
         self.sites = sites or COMPANY_CAREER_SITES
 
     async def fetch_jobs(self) -> ProviderFetchResult:
@@ -127,7 +133,7 @@ class CompanyCareersProvider(JobProvider):
                             if attempt == 1:
                                 errors.append({"site": company, "message": err_msg})
                     except (httpx.RequestError, httpx.TimeoutException) as e:
-                        err_msg = f"Network failure: {str(e)}"
+                        err_msg = f"Network failure: {e!s}"
                         if attempt == 1:
                             errors.append({"site": company, "message": err_msg})
 
@@ -161,8 +167,13 @@ class CompanyCareersProvider(JobProvider):
                     sources_succeeded += 1
                 except Exception as e:
                     sources_failed += 1
-                    logger.error(f"Error parsing site {company} with adapter {adapter}: {str(e)}")
-                    errors.append({"site": company, "message": f"Adapter error ({adapter}): {str(e)}"})
+                    logger.error(f"Error parsing site {company} with adapter {adapter}: {e!s}")
+                    errors.append(
+                        {
+                            "site": company,
+                            "message": f"Adapter error ({adapter}): {e!s}",
+                        }
+                    )
 
         return ProviderFetchResult(
             source=self.provider_name,
@@ -170,10 +181,10 @@ class CompanyCareersProvider(JobProvider):
             sources_checked=sources_checked,
             sources_succeeded=sources_succeeded,
             sources_failed=sources_failed,
-            errors=errors
+            errors=errors,
         )
 
-    def _parse_json_ld(self, html_content: str, company: str, base_url: str) -> List[Dict[str, Any]]:
+    def _parse_json_ld(self, html_content: str, company: str, base_url: str) -> list[dict[str, Any]]:
         jobs = []
         # Find all JSON-LD script blocks
         pattern = r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>'
@@ -199,7 +210,7 @@ class CompanyCareersProvider(JobProvider):
                 for post in postings:
                     title = post.get("title", "")
                     desc = post.get("description", "")
-                    
+
                     # Company
                     hiring_org = post.get("hiringOrganization")
                     org_name = company
@@ -213,7 +224,11 @@ class CompanyCareersProvider(JobProvider):
                         address = job_loc.get("address")
                         if isinstance(address, dict):
                             parts = []
-                            for field in ("addressLocality", "addressRegion", "addressCountry"):
+                            for field in (
+                                "addressLocality",
+                                "addressRegion",
+                                "addressCountry",
+                            ):
                                 if address.get(field):
                                     parts.append(address.get(field))
                             if parts:
@@ -237,7 +252,7 @@ class CompanyCareersProvider(JobProvider):
                         ext_id = identifier.get("value")
                     elif isinstance(identifier, str):
                         ext_id = identifier
-                    
+
                     if not ext_id:
                         ext_id = job_url
 
@@ -269,15 +284,15 @@ class CompanyCareersProvider(JobProvider):
                         "source": self.provider_name,
                         "source_board": None,
                         "original_url": job_url,
-                        "posted_date": post.get("datePosted")
+                        "posted_date": post.get("datePosted"),
                     }
                     jobs.append(normalized)
             except Exception as e:
-                logger.warning(f"Error parsing script tag JSON-LD: {str(e)}")
+                logger.warning(f"Error parsing script tag JSON-LD: {e!s}")
 
         return jobs
 
-    def _parse_rss(self, xml_content: str, company: str, base_url: str) -> List[Dict[str, Any]]:
+    def _parse_rss(self, xml_content: str, company: str, base_url: str) -> list[dict[str, Any]]:
         jobs = []
         root = ET.fromstring(xml_content.strip())
         channel = root.find("channel")
@@ -294,7 +309,7 @@ class CompanyCareersProvider(JobProvider):
             original_url = link_elem.text if link_elem is not None else base_url
             description = desc_elem.text if desc_elem is not None else ""
             posted_date = pubdate_elem.text if pubdate_elem is not None else None
-            
+
             guid_val = guid_elem.text if guid_elem is not None else None
             external_id = guid_val or original_url
 
@@ -315,12 +330,14 @@ class CompanyCareersProvider(JobProvider):
                 "source": self.provider_name,
                 "source_board": None,
                 "original_url": original_url,
-                "posted_date": posted_date
+                "posted_date": posted_date,
             }
             jobs.append(normalized)
         return jobs
 
-    def _parse_generic_html(self, html_content: str, company: str, base_url: str, selectors: dict) -> List[Dict[str, Any]]:
+    def _parse_generic_html(
+        self, html_content: str, company: str, base_url: str, selectors: dict
+    ) -> list[dict[str, Any]]:
         jobs = []
         job_item_sel = selectors.get("job_item_selector")
         title_sel = selectors.get("title_selector")
@@ -332,7 +349,7 @@ class CompanyCareersProvider(JobProvider):
 
         parser = SimpleTreeParser()
         parser.feed(html_content)
-        
+
         # Find all job card nodes
         item_nodes = parser.root.find_all(job_item_sel)
 
@@ -383,7 +400,7 @@ class CompanyCareersProvider(JobProvider):
                 "source": self.provider_name,
                 "source_board": None,
                 "original_url": original_url,
-                "posted_date": None
+                "posted_date": None,
             }
             jobs.append(normalized)
 

@@ -1,8 +1,10 @@
-import httpx
 import logging
 import re
 import xml.etree.ElementTree as ET
-from typing import List, Dict, Any
+from typing import Any
+
+import httpx
+
 from app.providers.base import JobProvider, ProviderFetchResult
 from app.services.job_parser import detect_remote_status
 
@@ -13,10 +15,11 @@ HASJOB_CONFIG = {
     "location": "India",
 }
 
+
 class HasjobProvider(JobProvider):
     provider_name = "hasjob"
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: dict[str, Any] = None):
         self.config = config or HASJOB_CONFIG
 
     async def fetch_jobs(self) -> ProviderFetchResult:
@@ -33,7 +36,7 @@ class HasjobProvider(JobProvider):
                 sources_checked=0,
                 sources_succeeded=0,
                 sources_failed=0,
-                errors=[]
+                errors=[],
             )
 
         url = "https://hasjob.co/feed"
@@ -54,7 +57,7 @@ class HasjobProvider(JobProvider):
                     if attempt == 1:
                         errors.append({"source": "hasjob", "message": err_msg})
             except (httpx.RequestError, httpx.TimeoutException) as e:
-                err_msg = f"Network failure: {str(e)}"
+                err_msg = f"Network failure: {e!s}"
                 if attempt == 1:
                     errors.append({"source": "hasjob", "message": err_msg})
 
@@ -76,7 +79,7 @@ class HasjobProvider(JobProvider):
                     original_url = link_elem.text if link_elem is not None else ""
                     description = desc_elem.text if desc_elem is not None else ""
                     posted_date = pubdate_elem.text if pubdate_elem is not None else None
-                    
+
                     # Guid or link hash for external_id
                     guid_val = guid_elem.text if guid_elem is not None else None
                     external_id = guid_val or original_url.split("/")[-1] or original_url
@@ -88,7 +91,7 @@ class HasjobProvider(JobProvider):
                     # Hasjob titles are usually format: "Software Engineer at Hasgeek" or "Software Engineer (Remote) at Hasgeek"
                     company = "Unknown"
                     title = raw_title
-                    parts = re.split(r'\s+at\s+', raw_title, flags=re.IGNORECASE, maxsplit=1)
+                    parts = re.split(r"\s+at\s+", raw_title, flags=re.IGNORECASE, maxsplit=1)
                     if len(parts) == 2:
                         title = parts[0].strip()
                         company = parts[1].strip()
@@ -122,13 +125,13 @@ class HasjobProvider(JobProvider):
                         "source": self.provider_name,
                         "source_board": None,
                         "original_url": original_url,
-                        "posted_date": posted_date
+                        "posted_date": posted_date,
                     }
                     normalized_jobs.append(normalized)
             except Exception as e:
                 sources_failed += 1
-                logger.error(f"Error parsing Hasjob RSS XML: {str(e)}")
-                errors.append({"source": "hasjob", "message": f"RSS Parse error: {str(e)}"})
+                logger.error(f"Error parsing Hasjob RSS XML: {e!s}")
+                errors.append({"source": "hasjob", "message": f"RSS Parse error: {e!s}"})
         else:
             if not succeeded:
                 sources_failed += 1
@@ -139,5 +142,5 @@ class HasjobProvider(JobProvider):
             sources_checked=sources_checked,
             sources_succeeded=sources_succeeded,
             sources_failed=sources_failed,
-            errors=errors
+            errors=errors,
         )

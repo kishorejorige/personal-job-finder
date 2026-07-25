@@ -1,38 +1,41 @@
-import os
 import json
+import os
+
 import pytest
-from datetime import datetime, UTC
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.main import app
-from app.database import Base, get_db
+from app.database import Base
 from app.models.job import Job
 from app.models.profile import Profile
 from app.models.provider_run import ProviderRun
 from app.providers import (
-    JobProvider,
-    LeverProvider,
     AshbyProvider,
-    RemoteOkProvider,
-    YCombinatorProvider,
+    CompanyCareersProvider,
     HackerNewsProvider,
     HasjobProvider,
-    CompanyCareersProvider,
-    ProviderFetchResult
+    JobProvider,
+    LeverProvider,
+    ProviderFetchResult,
+    RemoteOkProvider,
+    YCombinatorProvider,
 )
-from app.services.job_service import refresh_all_job_sources, generate_fingerprint, resolve_duplicates
+from app.services.job_service import (
+    refresh_all_job_sources,
+)
 
 # Use SQLite test DB
 TEST_DATABASE_URL = "sqlite:///./test_phase4.db"
 engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+
 @pytest.fixture(scope="function", autouse=True)
 def setup_db():
     Base.metadata.create_all(bind=engine)
     # Programmatic schema check in case ALTER TABLE is needed for test DB
     from sqlalchemy import text
+
     with engine.connect() as conn:
         result = conn.execute(text("PRAGMA table_info(jobs)"))
         columns = [row[1] for row in result.fetchall()]
@@ -55,13 +58,29 @@ def setup_db():
         except PermissionError:
             pass
 
+
 # 1. Test Lever Provider
 @pytest.mark.anyio
 async def test_lever_provider(monkeypatch):
     sites = [
-        {"company_name": "Test Global", "site_name": "test-global", "region": "global", "enabled": True},
-        {"company_name": "Test EU", "site_name": "test-eu", "region": "eu", "enabled": True},
-        {"company_name": "Test Invalid", "site_name": "test-invalid", "region": "global", "enabled": True}
+        {
+            "company_name": "Test Global",
+            "site_name": "test-global",
+            "region": "global",
+            "enabled": True,
+        },
+        {
+            "company_name": "Test EU",
+            "site_name": "test-eu",
+            "region": "eu",
+            "enabled": True,
+        },
+        {
+            "company_name": "Test Invalid",
+            "site_name": "test-invalid",
+            "region": "global",
+            "enabled": True,
+        },
     ]
     provider = LeverProvider(sites=sites)
 
@@ -74,10 +93,10 @@ async def test_lever_provider(monkeypatch):
             "description": "Awesome role.",
             "lists": [{"title": "Requirements", "content": "Python experience."}],
             "additional": "Apply now.",
-            "createdAt": 1609459200000, # 2021-01-01
+            "createdAt": 1609459200000,  # 2021-01-01
             "workplaceType": "hybrid",
             "hostedUrl": "https://jobs.lever.co/test-global/123",
-            "salary": {"amount": 150000, "currency": "USD"}
+            "salary": {"amount": 150000, "currency": "USD"},
         }
     ]
     mock_eu_data = [
@@ -88,11 +107,12 @@ async def test_lever_provider(monkeypatch):
             "description": "Data analysis.",
             "createdAt": 1609459200000,
             "workplaceType": "remote",
-            "hostedUrl": "https://jobs.eu.lever.co/test-eu/456"
+            "hostedUrl": "https://jobs.eu.lever.co/test-eu/456",
         }
     ]
 
     import httpx
+
     async def mock_get(self, url, *args, **kwargs):
         if "test-global" in str(url):
             return httpx.Response(200, json=mock_global_data)
@@ -130,12 +150,17 @@ async def test_lever_provider(monkeypatch):
     assert len(result.errors) == 1
     assert "test-invalid" in result.errors[0]["site"]
 
+
 # 2. Test Ashby Provider
 @pytest.mark.anyio
 async def test_ashby_provider(monkeypatch):
     boards = [
         {"company_name": "Ashby Corp", "job_board_name": "ashby-corp", "enabled": True},
-        {"company_name": "Invalid Board", "job_board_name": "invalid-board", "enabled": True}
+        {
+            "company_name": "Invalid Board",
+            "job_board_name": "invalid-board",
+            "enabled": True,
+        },
     ]
     provider = AshbyProvider(boards=boards)
 
@@ -149,12 +174,24 @@ async def test_ashby_provider(monkeypatch):
                 "employmentType": "Full-time",
                 "compensation": {"compensationTierSummary": "EUR 80,000 - 100,000"},
                 "descriptionHtml": "<p>Build things.</p>",
-                "jobUrl": "https://jobs.ashbyhq.com/ashby-corp/999"
-            }
+                "jobUrl": "https://jobs.ashbyhq.com/ashby-corp/999",
+            },
+            {
+                "id": "ashby_888",
+                "title": "Frontend Dev",
+                "location": "Paris",
+                "isRemote": False,
+                "workplaceType": None,
+                "employmentType": "Full-time",
+                "compensation": {"compensationTierSummary": "EUR 70,000"},
+                "descriptionHtml": "<p>Styling things.</p>",
+                "jobUrl": "https://jobs.ashbyhq.com/ashby-corp/888",
+            },
         ]
     }
 
     import httpx
+
     async def mock_get(self, url, *args, **kwargs):
         if "ashby-corp" in str(url):
             return httpx.Response(200, json=mock_ashby_data)
@@ -167,15 +204,24 @@ async def test_ashby_provider(monkeypatch):
     assert result.sources_checked == 2
     assert result.sources_succeeded == 1
     assert result.sources_failed == 1
-    assert len(result.jobs) == 1
+    assert len(result.jobs) == 2
 
-    job = result.jobs[0]
-    assert job["external_id"] == "ashby_999"
-    assert job["title"] == "Backend Dev"
-    assert job["location"] == "Berlin"
-    assert job["remote_status"] == "remote"
-    assert job["salary"] == "EUR 80,000 - 100,000"
-    assert "Build things" in job["description"]
+    job1 = result.jobs[0]
+    assert job1["external_id"] == "ashby_999"
+    assert job1["title"] == "Backend Dev"
+    assert job1["location"] == "Berlin"
+    assert job1["remote_status"] == "remote"
+    assert job1["salary"] == "EUR 80,000 - 100,000"
+    assert "Build things" in job1["description"]
+
+    job2 = result.jobs[1]
+    assert job2["external_id"] == "ashby_888"
+    assert job2["title"] == "Frontend Dev"
+    assert job2["location"] == "Paris"
+    assert job2["remote_status"] == "onsite"
+    assert job2["salary"] == "EUR 70,000"
+    assert "Styling things" in job2["description"]
+
 
 # 3. Test Remote OK Provider
 @pytest.mark.anyio
@@ -195,11 +241,12 @@ async def test_remote_ok_provider(monkeypatch):
             "salary_max": 140000,
             "url": "https://remoteok.com/api/777",
             "description": "Build UI templates.",
-            "date": "2023-10-01T12:00:00Z"
-        }
+            "date": "2023-10-01T12:00:00Z",
+        },
     ]
 
     import httpx
+
     async def mock_get(self, url, *args, **kwargs):
         return httpx.Response(200, json=mock_feed)
 
@@ -214,20 +261,16 @@ async def test_remote_ok_provider(monkeypatch):
     assert job["external_id"] == "rok_777"
     assert job["title"] == "Frontend Architect"
     assert job["company_name"] == "Rok Startup"
-    assert job["remote_status"] == "remote" # Always remote
+    assert job["remote_status"] == "remote"  # Always remote
     assert job["salary"] == "$120000 - $140000"
     assert "React" in job["skills"]
     assert job["original_url"] == "https://remoteok.com/api/777"
 
+
 # 4. Test Hacker News Provider
 @pytest.mark.anyio
 async def test_hacker_news_provider(monkeypatch):
-    config = {
-        "enabled": True,
-        "max_pages": 1,
-        "country": "India",
-        "remote_only": False
-    }
+    config = {"enabled": True, "max_pages": 1, "country": "India", "remote_only": False}
     provider = HackerNewsProvider(config=config)
 
     mock_algolia_data = {
@@ -237,19 +280,20 @@ async def test_hacker_news_provider(monkeypatch):
                 "title": "DrDroid (YC W23) Is Hiring a Senior Python Engineer",
                 "url": "https://www.ycombinator.com/companies/drdroid/jobs/111",
                 "created_at": "2023-10-01T12:00:00Z",
-                "job_text": "Based in Bangalore, India. Remote hybrid role. Python developers needed."
+                "job_text": "Based in Bangalore, India. Remote hybrid role. Python developers needed.",
             },
             {
                 "objectID": "yc_222",
                 "title": "US Startup (YC S24) Is Hiring a Founding Engineer",
                 "url": "https://www.ycombinator.com/companies/us-startup/jobs/222",
                 "created_at": "2023-10-01T12:00:00Z",
-                "job_text": "Based in San Francisco. Python developer."
-            }
+                "job_text": "Based in San Francisco. Python developer.",
+            },
         ]
     }
 
     import httpx
+
     async def mock_get(self, url, *args, **kwargs):
         return httpx.Response(200, json=mock_algolia_data)
 
@@ -266,6 +310,7 @@ async def test_hacker_news_provider(monkeypatch):
     assert job["source"] == "hacker_news"
     assert job["employment_type"] is None  # Verify employment_type remains null when absent
 
+
 @pytest.mark.anyio
 async def test_disabled_ycombinator_provider():
     provider = YCombinatorProvider()
@@ -277,6 +322,7 @@ async def test_disabled_ycombinator_provider():
     assert len(result.errors) == 1
     assert "pending implementation" in result.errors[0]["message"]
 
+
 # 5. Test Hasjob Provider
 @pytest.mark.anyio
 async def test_hasjob_provider(monkeypatch):
@@ -285,6 +331,7 @@ async def test_hasjob_provider(monkeypatch):
     mock_rss_xml = '<?xml version="1.0" encoding="utf-8"?><rss version="2.0"><channel><title>Hasjob Feed</title><link>https://hasjob.co</link><item><title>React Developer at HasGeek</title><link>https://hasjob.co/react-dev</link><description>Build Web UI interfaces.</description><pubDate>Sun, 01 Oct 2023 12:00:00 GMT</pubDate><guid>hasjob_888</guid><category>Bangalore</category></item></channel></rss>'
 
     import httpx
+
     async def mock_get(self, url, *args, **kwargs):
         return httpx.Response(200, text=mock_rss_xml)
 
@@ -302,6 +349,7 @@ async def test_hasjob_provider(monkeypatch):
     assert job["location"] == "Bangalore"
     assert "Web UI" in job["description"]
 
+
 # 6. Test Company Careers Adapters
 @pytest.mark.anyio
 async def test_company_careers_provider(monkeypatch):
@@ -310,7 +358,7 @@ async def test_company_careers_provider(monkeypatch):
             "company_name": "JSON-LD Corp",
             "careers_url": "https://jsonld.example/careers",
             "adapter": "json_ld",
-            "enabled": True
+            "enabled": True,
         },
         {
             "company_name": "Selector Corp",
@@ -321,9 +369,9 @@ async def test_company_careers_provider(monkeypatch):
                 "job_item_selector": "div.job-card",
                 "title_selector": "h3.title",
                 "location_selector": "span.location",
-                "url_selector": "a.apply-link"
-            }
-        }
+                "url_selector": "a.apply-link",
+            },
+        },
     ]
     provider = CompanyCareersProvider(sites=sites)
 
@@ -373,6 +421,7 @@ async def test_company_careers_provider(monkeypatch):
     """
 
     import httpx
+
     async def mock_get(self, url, *args, **kwargs):
         if "jsonld" in str(url):
             return httpx.Response(200, text=json_ld_html)
@@ -400,6 +449,7 @@ async def test_company_careers_provider(monkeypatch):
     assert job2["remote_status"] == "remote"
     assert job2["original_url"] == "https://selectors.example/apply/555"
 
+
 # 7. Test Unified Service integration (cooldown & duplicate resolution)
 @pytest.mark.anyio
 async def test_unified_service(setup_db, monkeypatch):
@@ -409,7 +459,7 @@ async def test_unified_service(setup_db, monkeypatch):
     profile = Profile(
         full_name="Alice",
         professional_title="Python developer",
-        skills=json.dumps(["Python", "FastAPI"])
+        skills=json.dumps(["Python", "FastAPI"]),
     )
     db.add(profile)
     db.commit()
@@ -417,6 +467,7 @@ async def test_unified_service(setup_db, monkeypatch):
     # Mock all providers fetch_jobs method
     class MockGreenhouse(JobProvider):
         provider_name = "greenhouse"
+
         async def fetch_jobs(self):
             return ProviderFetchResult(
                 source="greenhouse",
@@ -428,14 +479,17 @@ async def test_unified_service(setup_db, monkeypatch):
                         "location": "London",
                         "original_url": "https://boards.greenhouse.io/super/111",
                         "description": "FastAPI engineer",
-                        "source": "greenhouse"
+                        "source": "greenhouse",
                     }
                 ],
-                sources_checked=1, sources_succeeded=1, sources_failed=0
+                sources_checked=1,
+                sources_succeeded=1,
+                sources_failed=0,
             )
 
     class MockRemoteOk(JobProvider):
         provider_name = "remote_ok"
+
         async def fetch_jobs(self):
             return ProviderFetchResult(
                 source="remote_ok",
@@ -448,13 +502,16 @@ async def test_unified_service(setup_db, monkeypatch):
                         "location": "London",
                         "original_url": "https://remoteok.com/api/111",
                         "description": "FastAPI engineer",
-                        "source": "remote_ok"
+                        "source": "remote_ok",
                     }
                 ],
-                sources_checked=1, sources_succeeded=1, sources_failed=0
+                sources_checked=1,
+                sources_succeeded=1,
+                sources_failed=0,
             )
 
     import app.services.job_service
+
     def mock_create_provider(name):
         if name == "greenhouse":
             return MockGreenhouse()
@@ -464,8 +521,16 @@ async def test_unified_service(setup_db, monkeypatch):
             # return dummy provider that returns empty jobs
             class DummyProvider(JobProvider):
                 provider_name = name
+
                 async def fetch_jobs(self):
-                    return ProviderFetchResult(source=name, jobs=[], sources_checked=0, sources_succeeded=0, sources_failed=0)
+                    return ProviderFetchResult(
+                        source=name,
+                        jobs=[],
+                        sources_checked=0,
+                        sources_succeeded=0,
+                        sources_failed=0,
+                    )
+
             return DummyProvider()
 
     monkeypatch.setattr(app.services.job_service, "create_provider", mock_create_provider)

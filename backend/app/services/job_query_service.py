@@ -1,9 +1,11 @@
 from datetime import datetime
-from typing import Optional, List
+
 from sqlalchemy.orm import Query
+
 from app.models.job import Job
 
-def resolve_status_filter(status: Optional[str]) -> Optional[List[str]]:
+
+def resolve_status_filter(status: str | None) -> list[str] | None:
     """
     Map report groups or custom status filters to a list of matching DB application_status values.
     """
@@ -25,18 +27,19 @@ def resolve_status_filter(status: Optional[str]) -> Optional[List[str]]:
         return ["applied", "interview", "rejected", "offer"]
     return [status]
 
+
 def apply_job_filters(
     query: Query,
-    search: Optional[str] = None,
-    company: Optional[str] = None,
-    location: Optional[str] = None,
-    remote_status: Optional[str] = None,
-    application_status: Optional[str] = None,
-    status_filter: Optional[str] = None,
-    source: Optional[str] = None,
+    search: str | None = None,
+    company: str | None = None,
+    location: str | None = None,
+    remote_status: str | None = None,
+    application_status: str | None = None,
+    status_filter: str | None = None,
+    source: str | None = None,
     include_duplicates: bool = False,
-    minimum_match_score: Optional[int] = None,
-    posted_after: Optional[str] = None
+    minimum_match_score: int | None = None,
+    posted_after: str | None = None,
 ) -> Query:
     """
     Applies common filters to a Job query.
@@ -45,11 +48,11 @@ def apply_job_filters(
     if search:
         search_filter = f"%{search}%"
         query = query.filter(
-            Job.title.ilike(search_filter) |
-            Job.company_name.ilike(search_filter) |
-            Job.location.ilike(search_filter) |
-            Job.description.ilike(search_filter) |
-            Job.skills.ilike(search_filter)
+            Job.title.ilike(search_filter)
+            | Job.company_name.ilike(search_filter)
+            | Job.location.ilike(search_filter)
+            | Job.description.ilike(search_filter)
+            | Job.skills.ilike(search_filter)
         )
 
     # 2. Company name filter
@@ -100,11 +103,8 @@ def apply_job_filters(
 
     return query
 
-def apply_job_sorting(
-    query: Query,
-    sort_by: str = "match_score",
-    sort_order: str = "desc"
-) -> Query:
+
+def apply_job_sorting(query: Query, sort_by: str = "match_score", sort_order: str = "desc") -> Query:
     """
     Applies common sorting rules to a Job query.
     """
@@ -112,7 +112,7 @@ def apply_job_sorting(
         "match_score": Job.match_score,
         "created_at": Job.created_at,
         "company": Job.company_name,
-        "title": Job.title
+        "title": Job.title,
     }
     sort_column = sort_map.get(sort_by, Job.match_score)
 

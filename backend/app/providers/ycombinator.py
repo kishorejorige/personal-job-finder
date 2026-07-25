@@ -1,5 +1,6 @@
 import logging
-from typing import Dict, Any
+from typing import Any
+
 from app.providers.base import JobProvider, ProviderFetchResult
 
 logger = logging.getLogger(__name__)
@@ -8,10 +9,11 @@ YCOMBINATOR_CONFIG = {
     "enabled": False,  # Disabled by default until genuine YC Jobs adapter is implemented
 }
 
+
 class YCombinatorProvider(JobProvider):
     provider_name = "ycombinator"
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: dict[str, Any] = None):
         self.config = config or YCOMBINATOR_CONFIG
 
     async def fetch_jobs(self) -> ProviderFetchResult:
@@ -22,5 +24,10 @@ class YCombinatorProvider(JobProvider):
             sources_checked=1,
             sources_succeeded=0,
             sources_failed=0,
-            errors=[{"source": self.provider_name, "message": "Genuine YC Jobs adapter is pending implementation."}]
+            errors=[
+                {
+                    "source": self.provider_name,
+                    "message": "Genuine YC Jobs adapter is pending implementation.",
+                }
+            ],
         )

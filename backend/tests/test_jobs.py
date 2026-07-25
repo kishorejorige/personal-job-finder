@@ -1,21 +1,27 @@
-import os
 import json
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.main import app
 from app.database import Base, get_db
+from app.main import app
 from app.models.job import Job
 from app.models.profile import Profile
-from app.services.job_parser import clean_html, detect_remote_status, extract_skills_from_text
 from app.services.job_matcher import calculate_match
+from app.services.job_parser import (
+    clean_html,
+    detect_remote_status,
+    extract_skills_from_text,
+)
 
 # Override Database Url for testing
 TEST_DATABASE_URL = "sqlite:///./test_jobs.db"
 engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 @pytest.fixture(scope="function", autouse=True)
 def setup_db():
@@ -46,7 +52,9 @@ def setup_db():
         except PermissionError:
             pass
 
+
 client = TestClient(app)
+
 
 # 1. Test HTML description cleaning
 def test_html_cleaning():
@@ -57,12 +65,14 @@ def test_html_cleaning():
     assert "Welcome here" in cleaned
     assert "  " not in cleaned
 
+
 # 2. Test Remote-status detection
 def test_remote_status_detection():
     assert detect_remote_status("Software Engineer (Remote)", "New York", "We work from home.") == "remote"
     assert detect_remote_status("Senior Architect", "Office in SF", "This is a hybrid position.") == "hybrid"
     assert detect_remote_status("Staff Engineer", "Onsite - Austin, TX", "In-office work required.") == "onsite"
     assert detect_remote_status("Developer", "Unknown", "Apply now.") == "unknown"
+
 
 # 3. Test Skill extraction
 def test_skill_extraction():
@@ -76,6 +86,7 @@ def test_skill_extraction():
     assert "React" in skills
     assert "R" not in skills
 
+
 # 4. Test Match score calculation
 def test_match_score_calculation(setup_db):
     db = setup_db
@@ -88,7 +99,7 @@ def test_match_score_calculation(setup_db):
         skills=json.dumps(["Python", "FastAPI", "Docker"]),
         work_experience=json.dumps(["Worked at TechCorp"]),
         projects=json.dumps(["Built Job Finder"]),
-        certifications=json.dumps(["AWS Certified Developer"])
+        certifications=json.dumps(["AWS Certified Developer"]),
     )
     db.add(profile)
     db.commit()
@@ -100,12 +111,13 @@ def test_match_score_calculation(setup_db):
         job_skills=["Python", "FastAPI", "Docker", "AWS"],
         job_remote="remote",
         job_location="Unknown",
-        profile=profile
+        profile=profile,
     )
 
     assert res["match_score"] > 70
     assert "Python" in res["matched_skills"]
     assert "AWS" in res["missing_skills"]
+
 
 # 5. Test Missing-profile behavior
 def test_missing_profile_match():
@@ -115,11 +127,12 @@ def test_missing_profile_match():
         job_skills=["Python", "FastAPI"],
         job_remote="remote",
         job_location="Unknown",
-        profile=None
+        profile=None,
     )
     assert res["match_score"] == 0
     assert len(res["matched_skills"]) == 0
     assert "Python" in res["missing_skills"]
+
 
 # 6. Test crawler mock and duplicate prevention
 def test_greenhouse_search_and_sync(setup_db, monkeypatch):
@@ -129,7 +142,7 @@ def test_greenhouse_search_and_sync(setup_db, monkeypatch):
     profile = Profile(
         full_name="John Doe",
         professional_title="Developer",
-        skills=json.dumps(["Python", "FastAPI"])
+        skills=json.dumps(["Python", "FastAPI"]),
     )
     db.add(profile)
     db.commit()
@@ -145,7 +158,7 @@ def test_greenhouse_search_and_sync(setup_db, monkeypatch):
             "description": "<p>We build with Python &amp; FastAPI</p>",
             "posted_date": "2023-10-01T12:00:00Z",
             "source": "greenhouse",
-            "source_board": "test"
+            "source_board": "test",
         }
     ]
     mock_stats = {
@@ -153,10 +166,11 @@ def test_greenhouse_search_and_sync(setup_db, monkeypatch):
         "boards_checked": 1,
         "boards_succeeded": 1,
         "boards_failed": 0,
-        "errors": []
+        "errors": [],
     }
 
     from app.providers.greenhouse import GreenhouseProvider
+
     async def mock_fetch(self):
         return mock_jobs, mock_stats
 
@@ -191,6 +205,7 @@ def test_greenhouse_search_and_sync(setup_db, monkeypatch):
     assert job_db_refetched.application_status == "saved"
     assert job_db_refetched.notes == "Initial notes"
 
+
 # 7. Test REST API Actions
 def test_job_endpoints(setup_db):
     db = setup_db
@@ -204,7 +219,7 @@ def test_job_endpoints(setup_db):
         skills=json.dumps(["JavaScript"]),
         matched_skills=json.dumps([]),
         missing_skills=json.dumps(["JavaScript"]),
-        match_score=20
+        match_score=20,
     )
     db.add(job)
     db.commit()

@@ -1,14 +1,16 @@
-from typing import List, Dict, Any
 from dataclasses import dataclass, field
+from typing import Any
+
 
 @dataclass
 class ProviderFetchResult:
     source: str
-    jobs: List[Dict[str, Any]]
+    jobs: list[dict[str, Any]]
     sources_checked: int
     sources_succeeded: int
     sources_failed: int
-    errors: List[Dict[str, Any]] = field(default_factory=list)
+    errors: list[dict[str, Any]] = field(default_factory=list)
+
 
 class JobProvider:
     provider_name: str

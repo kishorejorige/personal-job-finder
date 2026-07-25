@@ -1,8 +1,9 @@
 import csv
 import io
 import json
-import pytest
 from datetime import datetime
+
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -17,6 +18,7 @@ SQLALCHEMY_DATABASE_URL = "sqlite:///./test_reports.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 client = TestClient(app)
+
 
 @pytest.fixture
 def db():
@@ -46,6 +48,7 @@ def db():
     app.dependency_overrides.pop(get_db, None)
     Base.metadata.drop_all(bind=engine)
 
+
 def populate_test_jobs(db):
     # Setup standard test jobs
     j1 = Job(
@@ -64,7 +67,7 @@ def populate_test_jobs(db):
         missing_skills=json.dumps(["Docker"]),
         notes="Notes with commas, quotes, and HTML tag <p>details</p>",
         original_url="https://example.com/jobs/python-dev-long-url-path-with-many-params-query-xyz-123456789",
-        duplicate_of_id=None
+        duplicate_of_id=None,
     )
     j2 = Job(
         title="Accountant",
@@ -81,7 +84,7 @@ def populate_test_jobs(db):
         missing_skills=json.dumps(["GST"]),
         notes="Saved for later.",
         original_url="https://example.com/jobs/accountant",
-        duplicate_of_id=None
+        duplicate_of_id=None,
     )
     j3 = Job(
         title="Office Administrator",
@@ -98,7 +101,7 @@ def populate_test_jobs(db):
         missing_skills=json.dumps([]),
         notes="Not applied yet.",
         original_url="https://example.com/jobs/admin",
-        duplicate_of_id=None
+        duplicate_of_id=None,
     )
     j4 = Job(
         title="Software Engineer",
@@ -110,11 +113,12 @@ def populate_test_jobs(db):
         source="Greenhouse",
         posted_date=datetime(2026, 7, 20),
         application_status="applied",
-        duplicate_of_id=1
+        duplicate_of_id=1,
     )
 
     db.add_all([j1, j2, j3, j4])
     db.commit()
+
 
 def populate_profile(db):
     p = Profile(
@@ -124,12 +128,14 @@ def populate_profile(db):
         preferred_job_role="Python Backend Developer",
         preferred_location="Delhi / Remote",
         total_experience="5 years",
-        skills=json.dumps(["Python", "FastAPI", "SQL"])
+        skills=json.dumps(["Python", "FastAPI", "SQL"]),
     )
     db.add(p)
     db.commit()
 
+
 # --- PDF EXPORT TESTS ---
+
 
 def test_export_all_jobs_pdf(db):
     populate_test_jobs(db)
@@ -140,6 +146,7 @@ def test_export_all_jobs_pdf(db):
     assert "personal-job-finder-all-jobs" in response.headers["content-disposition"]
     assert response.content.startswith(b"%PDF")
 
+
 def test_export_applied_jobs_pdf(db):
     populate_test_jobs(db)
     response = client.get("/api/reports/jobs.pdf?status=applied")
@@ -148,12 +155,14 @@ def test_export_applied_jobs_pdf(db):
     assert "personal-job-finder-applied-jobs" in response.headers["content-disposition"]
     assert response.content.startswith(b"%PDF")
 
+
 def test_export_non_applied_jobs_pdf(db):
     populate_test_jobs(db)
     response = client.get("/api/reports/jobs.pdf?status=non_applied")
     assert response.status_code == 200
     assert "personal-job-finder-non_applied-jobs" in response.headers["content-disposition"]
     assert response.content.startswith(b"%PDF")
+
 
 def test_export_saved_jobs_pdf(db):
     populate_test_jobs(db)
@@ -162,6 +171,7 @@ def test_export_saved_jobs_pdf(db):
     assert "personal-job-finder-saved-jobs" in response.headers["content-disposition"]
     assert response.content.startswith(b"%PDF")
 
+
 def test_export_interview_jobs_pdf(db):
     populate_test_jobs(db)
     response = client.get("/api/reports/jobs.pdf?status=interview")
@@ -169,11 +179,13 @@ def test_export_interview_jobs_pdf(db):
     assert "personal-job-finder-interview-jobs" in response.headers["content-disposition"]
     assert response.content.startswith(b"%PDF")
 
+
 def test_empty_pdf_report(db):
     # Database is empty, testing filters that yield zero matches
     response = client.get("/api/reports/jobs.pdf?status=applied")
     assert response.status_code == 200
     assert response.content.startswith(b"%PDF")
+
 
 def test_profile_available_and_missing(db):
     populate_test_jobs(db)
@@ -188,23 +200,27 @@ def test_profile_available_and_missing(db):
     assert response_with_prof.status_code == 200
     assert response_with_prof.content.startswith(b"%PDF")
 
+
 def test_large_job_list_pdf_summary_trigger(db):
     # Populating 6 jobs to trigger summary section and pagebreak (> 5 limit)
     for i in range(7):
-        db.add(Job(
-            title=f"Job Title {i}",
-            company_name="TechCorp",
-            location="Delhi",
-            remote_status="remote",
-            source="Ashby",
-            posted_date=datetime(2026, 7, 20),
-            application_status="saved",
-            match_score=85
-        ))
+        db.add(
+            Job(
+                title=f"Job Title {i}",
+                company_name="TechCorp",
+                location="Delhi",
+                remote_status="remote",
+                source="Ashby",
+                posted_date=datetime(2026, 7, 20),
+                application_status="saved",
+                match_score=85,
+            )
+        )
     db.commit()
     response = client.get("/api/reports/jobs.pdf?status=all")
     assert response.status_code == 200
     assert response.content.startswith(b"%PDF")
+
 
 def test_pdf_filter_export_duplicates(db):
     populate_test_jobs(db)
@@ -218,12 +234,14 @@ def test_pdf_filter_export_duplicates(db):
     assert res_in.status_code == 200
     assert res_in.content.startswith(b"%PDF")
 
+
 def test_pdf_current_filter_params(db):
     populate_test_jobs(db)
     # Check that query parameters filters apply successfully
     res = client.get("/api/reports/jobs.pdf?search=Python&remote_status=remote&minimum_match_score=50")
     assert res.status_code == 200
     assert res.content.startswith(b"%PDF")
+
 
 def test_one_job_pdf_export_success_and_404(db):
     populate_test_jobs(db)
@@ -239,6 +257,7 @@ def test_one_job_pdf_export_success_and_404(db):
     assert res_fail.status_code == 404
     assert "not found" in res_fail.json()["detail"].lower()
 
+
 def test_application_summary_report(db):
     populate_test_jobs(db)
     res = client.get("/api/reports/application-summary.pdf")
@@ -247,6 +266,7 @@ def test_application_summary_report(db):
 
 
 # --- CSV EXPORT TESTS ---
+
 
 def test_csv_headers_and_content(db):
     populate_test_jobs(db)
@@ -274,16 +294,17 @@ def test_csv_headers_and_content(db):
     assert headers[15] == "notes"
 
     # Verify Content Rows (duplicates filtered out by default, so 3 jobs)
-    assert len(rows) == 4 # header + 3 data rows
+    assert len(rows) == 4  # header + 3 data rows
 
     # Verify matched skills format (should be pipe-separated)
     python_job_row = next(r for r in rows if "Python Software Developer" in r[2])
-    assert python_job_row[13] == "Python | FastAPI" # formatted list
-    assert python_job_row[14] == "Docker" # missing skills
+    assert python_job_row[13] == "Python | FastAPI"  # formatted list
+    assert python_job_row[14] == "Docker"  # missing skills
 
     # Verify quote escaping for notes containing commas
     # The csv reader handles quotes natively; we check that commas didn't split the notes into multiple columns
     assert "Notes with commas, quotes, and HTML tag <p>details</p>" in python_job_row[15]
+
 
 def test_csv_filtered_jobs(db):
     populate_test_jobs(db)
@@ -298,6 +319,7 @@ def test_csv_filtered_jobs(db):
     assert len(rows) == 1
     assert rows[0][0] == "id"
 
+
 def test_csv_applied_only(db):
     populate_test_jobs(db)
     response = client.get("/api/reports/jobs.csv?status=applied")
@@ -306,8 +328,9 @@ def test_csv_applied_only(db):
     f = io.StringIO(csv_text)
     reader = csv.reader(f)
     rows = list(reader)
-    assert len(rows) == 2 # header + 1 applied job row
+    assert len(rows) == 2  # header + 1 applied job row
     assert "Python Software Developer" in rows[1][2]
+
 
 def test_csv_non_applied_only(db):
     populate_test_jobs(db)
@@ -318,4 +341,33 @@ def test_csv_non_applied_only(db):
     reader = csv.reader(f)
     rows = list(reader)
     # Saved (Ledger) and Not Applied (Apex) -> 2 jobs
-    assert len(rows) == 3 # header + 2 rows
+    assert len(rows) == 3  # header + 2 rows
+
+
+def test_csv_formula_injection_protection(db):
+    j = Job(
+        title="=SUM(A1:A5)",
+        company_name="+Addison",
+        location="-Paris",
+        remote_status="@Home",
+        employment_type="full-time",
+        source="Ashby",
+        posted_date=datetime(2026, 7, 20),
+        application_status="saved",
+    )
+    db.add(j)
+    db.commit()
+
+    response = client.get("/api/reports/jobs.csv?status=all")
+    assert response.status_code == 200
+    csv_text = response.content.decode("utf-8-sig")
+    f = io.StringIO(csv_text)
+    reader = csv.reader(f)
+    rows = list(reader)
+
+    assert len(rows) == 2
+    data_row = rows[1]
+    assert data_row[2] == "'=SUM(A1:A5)"
+    assert data_row[3] == "'+Addison"
+    assert data_row[4] == "'-Paris"
+    assert data_row[5] == "'@Home"

@@ -1,0 +1,14 @@
+# Ruff configuration for Personal Job Finder backend
+line-length = 120
+target-version = "py313"
+
+[lint]
+# Enable Pyflakes (F), pycodestyle (E, W), and isort (I)
+select = ["E", "F", "W", "I"]
+
+# Ignore minor warnings if necessary
+ignore = ["E501", "E741", "F841"]
+
+[lint.per-file-ignores]
+"**/__init__.py" = ["F401"]
+"__init__.py" = ["F401"]

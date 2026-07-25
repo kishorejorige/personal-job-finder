@@ -1,16 +1,19 @@
-import httpx
 import logging
-from datetime import datetime, UTC
-from typing import List, Dict, Any
+from datetime import UTC, datetime
+from typing import Any
+
+import httpx
+
 from app.providers.base import JobProvider, ProviderFetchResult
 from app.providers.lever_sites import LEVER_SITES
 
 logger = logging.getLogger(__name__)
 
+
 class LeverProvider(JobProvider):
     provider_name = "lever"
 
-    def __init__(self, sites: List[Dict[str, Any]] = None):
+    def __init__(self, sites: list[dict[str, Any]] = None):
         self.sites = sites or LEVER_SITES
 
     async def fetch_jobs(self) -> ProviderFetchResult:
@@ -26,7 +29,7 @@ class LeverProvider(JobProvider):
                 company = site["company_name"]
                 site_name = site["site_name"]
                 region = site.get("region", "global")
-                
+
                 # Select correct Lever API hostname
                 if region == "eu":
                     url = f"https://api.eu.lever.co/v0/postings/{site_name}?mode=json"
@@ -49,7 +52,7 @@ class LeverProvider(JobProvider):
                             if attempt == 1:
                                 errors.append({"site": site_name, "message": err_msg})
                     except (httpx.RequestError, httpx.TimeoutException) as e:
-                        err_msg = f"Network failure: {str(e)}"
+                        err_msg = f"Network failure: {e!s}"
                         if attempt == 1:
                             errors.append({"site": site_name, "message": err_msg})
 
@@ -59,7 +62,7 @@ class LeverProvider(JobProvider):
                         categories = job.get("categories", {})
                         location = categories.get("location", "Unknown")
                         employment_type = categories.get("commitment", "")
-                        
+
                         # Build combined description (description + lists + additional)
                         desc_parts = []
                         if "description" in job:
@@ -113,7 +116,7 @@ class LeverProvider(JobProvider):
                             "source": self.provider_name,
                             "source_board": site_name,
                             "original_url": job.get("hostedUrl", ""),
-                            "posted_date": posted_date
+                            "posted_date": posted_date,
                         }
                         normalized_jobs.append(normalized)
                 else:
@@ -126,5 +129,5 @@ class LeverProvider(JobProvider):
             sources_checked=sources_checked,
             sources_succeeded=sources_succeeded,
             sources_failed=sources_failed,
-            errors=errors
+            errors=errors,
         )

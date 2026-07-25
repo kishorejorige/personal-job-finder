@@ -3,22 +3,31 @@ import io
 import json
 import re
 from datetime import datetime
-from typing import List, Optional, Any
+from typing import Any
 
-from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.colors import HexColor
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.pdfgen import canvas
+from reportlab.platypus import (
+    PageBreak,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 from app.models.job import Job
 from app.models.profile import Profile
+
 
 class NumberedCanvas(canvas.Canvas):
     """
     Two-pass canvas to dynamically compute and render footer page numbers ('Page X of Y')
     on A4 landscape layouts.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._saved_page_states = []
@@ -50,6 +59,7 @@ class NumberedCanvas(canvas.Canvas):
         self.drawString(36, 20, footer_left)
         self.restoreState()
 
+
 def safe_text(val: Any) -> str:
     """
     Sanitize text before rendering to prevent ReportLab XML parser crashes.
@@ -65,7 +75,7 @@ def safe_text(val: Any) -> str:
         return ""
 
     # 1. Strip raw HTML tags
-    s = re.sub(r'<[^>]*>', '', s)
+    s = re.sub(r"<[^>]*>", "", s)
 
     # 2. Decode existing entities
     s = html.unescape(s)
@@ -79,6 +89,7 @@ def safe_text(val: Any) -> str:
     # 5. Convert newlines to ReportLab line breaks
     s = s.replace("\n", "<br/>")
     return s
+
 
 def format_date(dt: Any) -> str:
     """
@@ -98,14 +109,15 @@ def format_date(dt: Any) -> str:
     except Exception:
         return s
 
-def create_report_header(report_title: str, profile: Optional[Profile], styles: Any) -> List[Any]:
+
+def create_report_header(report_title: str, profile: Profile | None, styles: Any) -> list[Any]:
     """
     Generates report title and candidate profile details block.
     """
     flowables = []
 
     # Document main title
-    title_p = Paragraph(f"<b>Personal Job Finder</b>", styles["DocTitle"])
+    title_p = Paragraph("<b>Personal Job Finder</b>", styles["DocTitle"])
     flowables.append(title_p)
 
     subtitle_p = Paragraph(f"Report: {report_title}", styles["DocSubtitle"])
@@ -119,39 +131,44 @@ def create_report_header(report_title: str, profile: Optional[Profile], styles: 
                 Paragraph("<b>Candidate Name:</b>", styles["HeaderLabel"]),
                 Paragraph(safe_text(profile.full_name), styles["HeaderValue"]),
                 Paragraph("<b>Professional Title:</b>", styles["HeaderLabel"]),
-                Paragraph(safe_text(profile.professional_title), styles["HeaderValue"])
+                Paragraph(safe_text(profile.professional_title), styles["HeaderValue"]),
             ],
             [
                 Paragraph("<b>Occupation Category:</b>", styles["HeaderLabel"]),
                 Paragraph(safe_text(profile.occupation_category), styles["HeaderValue"]),
                 Paragraph("<b>Preferred Job Role:</b>", styles["HeaderLabel"]),
-                Paragraph(safe_text(profile.preferred_job_role), styles["HeaderValue"])
+                Paragraph(safe_text(profile.preferred_job_role), styles["HeaderValue"]),
             ],
             [
                 Paragraph("<b>Preferred Location:</b>", styles["HeaderLabel"]),
                 Paragraph(safe_text(profile.preferred_location), styles["HeaderValue"]),
                 Paragraph("<b>Total Experience:</b>", styles["HeaderLabel"]),
-                Paragraph(safe_text(profile.total_experience), styles["HeaderValue"])
-            ]
+                Paragraph(safe_text(profile.total_experience), styles["HeaderValue"]),
+            ],
         ]
 
         # Table takes 4 columns (Label1: 120, Value1: 250, Label2: 120, Value2: 250)
         profile_table = Table(profile_data, colWidths=[120, 250, 120, 250])
-        profile_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), HexColor("#f3f4f6")),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('PADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('LINEBELOW', (0, 0), (-1, -1), 0.5, HexColor("#e5e7eb")),
-        ]))
+        profile_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), HexColor("#f3f4f6")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("PADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                    ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                    ("LINEBELOW", (0, 0), (-1, -1), 0.5, HexColor("#e5e7eb")),
+                ]
+            )
+        )
 
         flowables.append(profile_table)
         flowables.append(Spacer(1, 16))
 
     return flowables
 
-def create_summary_section(jobs: List[Job], styles: Any) -> Table:
+
+def create_summary_section(jobs: list[Job], styles: Any) -> Table:
     """
     Renders match distributions, remote status ratios, and application statuses.
     """
@@ -181,39 +198,53 @@ def create_summary_section(jobs: List[Job], styles: Any) -> Table:
         [
             Paragraph("<b>MATCH PROFILE</b>", styles["SectionHeader"]),
             Paragraph("<b>WORK ARRANGEMENTS</b>", styles["SectionHeader"]),
-            Paragraph("<b>APPLICATION TRACKING</b>", styles["SectionHeader"])
+            Paragraph("<b>APPLICATION TRACKING</b>", styles["SectionHeader"]),
         ],
         [
-            Paragraph(f"• <b>Strong (80-100):</b> {strong}<br/>"
-                      f"• <b>Good (60-79):</b> {good}<br/>"
-                      f"• <b>Partial (40-59):</b> {partial}<br/>"
-                      f"• <b>Low (0-39):</b> {low}", styles["SummaryCell"]),
-            Paragraph(f"• <b>Remote:</b> {remote}<br/>"
-                      f"• <b>Hybrid:</b> {hybrid}<br/>"
-                      f"• <b>Onsite:</b> {onsite}<br/>"
-                      f"• <b>Unknown:</b> {unknown_arr}", styles["SummaryCell"]),
-            Paragraph(f"• <b>Not Applied:</b> {not_applied}<br/>"
-                      f"• <b>Saved:</b> {saved}<br/>"
-                      f"• <b>Applied:</b> {applied}<br/>"
-                      f"• <b>Interview:</b> {interview}<br/>"
-                      f"• <b>Rejected:</b> {rejected}<br/>"
-                      f"• <b>Offer:</b> {offer}", styles["SummaryCell"])
-        ]
+            Paragraph(
+                f"• <b>Strong (80-100):</b> {strong}<br/>"
+                f"• <b>Good (60-79):</b> {good}<br/>"
+                f"• <b>Partial (40-59):</b> {partial}<br/>"
+                f"• <b>Low (0-39):</b> {low}",
+                styles["SummaryCell"],
+            ),
+            Paragraph(
+                f"• <b>Remote:</b> {remote}<br/>"
+                f"• <b>Hybrid:</b> {hybrid}<br/>"
+                f"• <b>Onsite:</b> {onsite}<br/>"
+                f"• <b>Unknown:</b> {unknown_arr}",
+                styles["SummaryCell"],
+            ),
+            Paragraph(
+                f"• <b>Not Applied:</b> {not_applied}<br/>"
+                f"• <b>Saved:</b> {saved}<br/>"
+                f"• <b>Applied:</b> {applied}<br/>"
+                f"• <b>Interview:</b> {interview}<br/>"
+                f"• <b>Rejected:</b> {rejected}<br/>"
+                f"• <b>Offer:</b> {offer}",
+                styles["SummaryCell"],
+            ),
+        ],
     ]
 
     # Available width is 770
     t = Table(summary_data, colWidths=[256, 256, 258])
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), HexColor("#0f766e")),
-        ('TEXTCOLOR', (0, 0), (-1, 0), HexColor("#ffffff")),
-        ('PADDING', (0, 0), (-1, -1), 8),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('GRID', (0, 0), (-1, -1), 1, HexColor("#cbd5e1")),
-        ('BACKGROUND', (0, 1), (-1, 1), HexColor("#f8fafc")),
-    ]))
+    t.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), HexColor("#0f766e")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), HexColor("#ffffff")),
+                ("PADDING", (0, 0), (-1, -1), 8),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("GRID", (0, 0), (-1, -1), 1, HexColor("#cbd5e1")),
+                ("BACKGROUND", (0, 1), (-1, 1), HexColor("#f8fafc")),
+            ]
+        )
+    )
     return t
 
-def format_job_record(job: Job, styles: Any) -> List[Any]:
+
+def format_job_record(job: Job, styles: Any) -> list[Any]:
     """
     Format job data fields into wrapped Flowables representing a single table row.
     """
@@ -224,7 +255,10 @@ def format_job_record(job: Job, styles: Any) -> List[Any]:
     # 2. Title & Company
     title_escaped = safe_text(job.title)
     company_escaped = safe_text(job.company_name)
-    title_company = Paragraph(f"<b>{title_escaped}</b><br/><font color='#4b5563'>{company_escaped}</font>", styles["TableCell"])
+    title_company = Paragraph(
+        f"<b>{title_escaped}</b><br/><font color='#4b5563'>{company_escaped}</font>",
+        styles["TableCell"],
+    )
 
     # 3. Location, Remote & Type
     loc = safe_text(job.location) or "Unknown"
@@ -241,7 +275,10 @@ def format_job_record(job: Job, styles: Any) -> List[Any]:
     status_val = (job.application_status or "not_applied").replace("_", " ").upper()
     posted_d = format_date(job.posted_date)
     applied_d = format_date(job.applied_date) if job.application_status == "applied" and job.applied_date else "-"
-    status_dates = Paragraph(f"<b>{status_val}</b><br/>Posted: {posted_d}<br/>Applied: {applied_d}", styles["TableCell"])
+    status_dates = Paragraph(
+        f"<b>{status_val}</b><br/>Posted: {posted_d}<br/>Applied: {applied_d}",
+        styles["TableCell"],
+    )
 
     # 6. Skills (technical/soft)
     try:
@@ -259,7 +296,7 @@ def format_job_record(job: Job, styles: Any) -> List[Any]:
     skills = Paragraph(
         f"<b>Matched:</b> <font color='#16a34a'>{safe_text(matched_s)}</font><br/>"
         f"<b>Missing:</b> <font color='#b91c1c'>{safe_text(missing_s)}</font>",
-        styles["TableCell"]
+        styles["TableCell"],
     )
 
     # 7. Notes & Job Link
@@ -272,14 +309,20 @@ def format_job_record(job: Job, styles: Any) -> List[Any]:
         raw_url = html.escape(job.original_url)
         link_html = f"<a href='{raw_url}' color='#2563eb'><u>Job Link</u></a>"
 
-    notes_link = Paragraph(
-        f"{notes_display or 'No notes added.'}<br/>{link_html}",
-        styles["TableCell"]
-    )
+    notes_link = Paragraph(f"{notes_display or 'No notes added.'}<br/>{link_html}", styles["TableCell"])
 
-    return [match_p, title_company, loc_type, sal_source, status_dates, skills, notes_link]
+    return [
+        match_p,
+        title_company,
+        loc_type,
+        sal_source,
+        status_dates,
+        skills,
+        notes_link,
+    ]
 
-def create_jobs_table(jobs: List[Job], styles: Any) -> Table:
+
+def create_jobs_table(jobs: list[Job], styles: Any) -> Table:
     """
     Assembles a landscape, paginated table of jobs.
     """
@@ -290,7 +333,7 @@ def create_jobs_table(jobs: List[Job], styles: Any) -> Table:
         Paragraph("<b>Salary & Source</b>", styles["TableHeader"]),
         Paragraph("<b>Status & Dates</b>", styles["TableHeader"]),
         Paragraph("<b>Matched / Missing Skills</b>", styles["TableHeader"]),
-        Paragraph("<b>Notes & Apply Link</b>", styles["TableHeader"])
+        Paragraph("<b>Notes & Apply Link</b>", styles["TableHeader"]),
     ]
 
     table_data = [header_row]
@@ -303,23 +346,24 @@ def create_jobs_table(jobs: List[Job], styles: Any) -> Table:
 
     # Base grid and header formatting
     t_styles = [
-        ('BACKGROUND', (0, 0), (-1, 0), HexColor("#0f766e")),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('GRID', (0, 0), (-1, -1), 0.5, HexColor("#e5e7eb")),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ("BACKGROUND", (0, 0), (-1, 0), HexColor("#0f766e")),
+        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#e5e7eb")),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
     ]
 
     # Alternating row colors
     for i in range(1, len(jobs) + 1):
         bg = "#ffffff" if i % 2 != 0 else "#f9fafb"
-        t_styles.append(('BACKGROUND', (0, i), (-1, i), HexColor(bg)))
+        t_styles.append(("BACKGROUND", (0, i), (-1, i), HexColor(bg)))
 
     t.setStyle(TableStyle(t_styles))
     return t
 
-def create_jobs_pdf(jobs: List[Job], report_title: str, profile: Optional[Profile] = None) -> bytes:
+
+def create_jobs_pdf(jobs: list[Job], report_title: str, profile: Profile | None = None) -> bytes:
     """
     Main generator method. Compiles reports with covers, stats summaries,
     safe HTML escaping, and returns PDF raw bytes.
@@ -333,7 +377,7 @@ def create_jobs_pdf(jobs: List[Job], report_title: str, profile: Optional[Profil
         leftMargin=36,
         rightMargin=36,
         topMargin=36,
-        bottomMargin=36
+        bottomMargin=36,
     )
 
     # Build standard paragraph styles
@@ -346,7 +390,7 @@ def create_jobs_pdf(jobs: List[Job], report_title: str, profile: Optional[Profil
         fontName="Helvetica-Bold",
         fontSize=20,
         leading=24,
-        textColor=HexColor("#0f766e")
+        textColor=HexColor("#0f766e"),
     )
 
     styles["DocSubtitle"] = ParagraphStyle(
@@ -355,7 +399,7 @@ def create_jobs_pdf(jobs: List[Job], report_title: str, profile: Optional[Profil
         fontName="Helvetica-Bold",
         fontSize=11,
         leading=14,
-        textColor=HexColor("#4b5563")
+        textColor=HexColor("#4b5563"),
     )
 
     styles["HeaderLabel"] = ParagraphStyle(
@@ -364,7 +408,7 @@ def create_jobs_pdf(jobs: List[Job], report_title: str, profile: Optional[Profil
         fontName="Helvetica-Bold",
         fontSize=8.5,
         leading=11,
-        textColor=HexColor("#0f766e")
+        textColor=HexColor("#0f766e"),
     )
 
     styles["HeaderValue"] = ParagraphStyle(
@@ -373,7 +417,7 @@ def create_jobs_pdf(jobs: List[Job], report_title: str, profile: Optional[Profil
         fontName="Helvetica",
         fontSize=8.5,
         leading=11,
-        textColor=HexColor("#1f2937")
+        textColor=HexColor("#1f2937"),
     )
 
     styles["SectionHeader"] = ParagraphStyle(
@@ -382,7 +426,7 @@ def create_jobs_pdf(jobs: List[Job], report_title: str, profile: Optional[Profil
         fontSize=9,
         leading=11,
         textColor=HexColor("#ffffff"),
-        alignment=1 # Center
+        alignment=1,  # Center
     )
 
     styles["SummaryCell"] = ParagraphStyle(
@@ -390,7 +434,7 @@ def create_jobs_pdf(jobs: List[Job], report_title: str, profile: Optional[Profil
         fontName="Helvetica",
         fontSize=8.5,
         leading=13,
-        textColor=HexColor("#1e293b")
+        textColor=HexColor("#1e293b"),
     )
 
     styles["TableHeader"] = ParagraphStyle(
@@ -398,7 +442,7 @@ def create_jobs_pdf(jobs: List[Job], report_title: str, profile: Optional[Profil
         fontName="Helvetica-Bold",
         fontSize=8,
         leading=10,
-        textColor=HexColor("#ffffff")
+        textColor=HexColor("#ffffff"),
     )
 
     styles["TableCell"] = ParagraphStyle(
@@ -406,7 +450,7 @@ def create_jobs_pdf(jobs: List[Job], report_title: str, profile: Optional[Profil
         fontName="Helvetica",
         fontSize=7,
         leading=9.5,
-        textColor=HexColor("#1e293b")
+        textColor=HexColor("#1e293b"),
     )
 
     styles["ScoreCell"] = ParagraphStyle(
@@ -414,8 +458,8 @@ def create_jobs_pdf(jobs: List[Job], report_title: str, profile: Optional[Profil
         fontName="Helvetica-Bold",
         fontSize=8,
         leading=10,
-        alignment=1, # Center
-        textColor=HexColor("#0f766e")
+        alignment=1,  # Center
+        textColor=HexColor("#0f766e"),
     )
 
     styles["EmptyText"] = ParagraphStyle(
@@ -423,7 +467,7 @@ def create_jobs_pdf(jobs: List[Job], report_title: str, profile: Optional[Profil
         fontName="Helvetica-Oblique",
         fontSize=10,
         leading=14,
-        textColor=HexColor("#b91c1c")
+        textColor=HexColor("#b91c1c"),
     )
 
     flowables = []
@@ -434,7 +478,12 @@ def create_jobs_pdf(jobs: List[Job], report_title: str, profile: Optional[Profil
     if not jobs:
         # Empty result PDF layout
         flowables.append(Spacer(1, 16))
-        flowables.append(Paragraph("<b>No jobs matched the selected report and filters.</b>", styles["EmptyText"]))
+        flowables.append(
+            Paragraph(
+                "<b>No jobs matched the selected report and filters.</b>",
+                styles["EmptyText"],
+            )
+        )
     else:
         # 2. Summary Page Section (Only for reports with 5 or more jobs)
         if len(jobs) >= 5:
@@ -445,7 +494,10 @@ def create_jobs_pdf(jobs: List[Job], report_title: str, profile: Optional[Profil
             flowables.append(PageBreak())
 
             # Start page 2 with mini header and jobs table
-            mini_title = Paragraph(f"<b>Personal Job Finder — {report_title} (List View)</b>", styles["DocSubtitle"])
+            mini_title = Paragraph(
+                f"<b>Personal Job Finder — {report_title} (List View)</b>",
+                styles["DocSubtitle"],
+            )
             flowables.append(mini_title)
             flowables.append(Spacer(1, 8))
 
@@ -458,7 +510,8 @@ def create_jobs_pdf(jobs: List[Job], report_title: str, profile: Optional[Profil
     buffer.close()
     return pdf_bytes
 
-def create_single_job_pdf(job: Job, profile: Optional[Profile] = None) -> bytes:
+
+def create_single_job_pdf(job: Job, profile: Profile | None = None) -> bytes:
     """
     Renders detailed print layout (A4 Portrait) for a single job description.
     """
@@ -469,7 +522,7 @@ def create_single_job_pdf(job: Job, profile: Optional[Profile] = None) -> bytes:
         leftMargin=54,
         rightMargin=54,
         topMargin=54,
-        bottomMargin=54
+        bottomMargin=54,
     )
 
     base_styles = getSampleStyleSheet()
@@ -481,7 +534,7 @@ def create_single_job_pdf(job: Job, profile: Optional[Profile] = None) -> bytes:
         fontName="Helvetica-Bold",
         fontSize=22,
         leading=26,
-        textColor=HexColor("#0f766e")
+        textColor=HexColor("#0f766e"),
     )
     company_style = ParagraphStyle(
         name="JobCompany",
@@ -489,7 +542,7 @@ def create_single_job_pdf(job: Job, profile: Optional[Profile] = None) -> bytes:
         fontName="Helvetica-Bold",
         fontSize=12,
         leading=16,
-        textColor=HexColor("#4b5563")
+        textColor=HexColor("#4b5563"),
     )
     section_title_style = ParagraphStyle(
         name="SectionTitle",
@@ -499,7 +552,7 @@ def create_single_job_pdf(job: Job, profile: Optional[Profile] = None) -> bytes:
         leading=16,
         textColor=HexColor("#0f766e"),
         spaceBefore=14,
-        spaceAfter=6
+        spaceAfter=6,
     )
     body_style = ParagraphStyle(
         name="JobBody",
@@ -507,7 +560,7 @@ def create_single_job_pdf(job: Job, profile: Optional[Profile] = None) -> bytes:
         fontName="Helvetica",
         fontSize=9.5,
         leading=14,
-        textColor=HexColor("#1e293b")
+        textColor=HexColor("#1e293b"),
     )
     label_style = ParagraphStyle(
         name="LabelStyle",
@@ -515,7 +568,7 @@ def create_single_job_pdf(job: Job, profile: Optional[Profile] = None) -> bytes:
         fontName="Helvetica-Bold",
         fontSize=9,
         leading=12,
-        textColor=HexColor("#0f766e")
+        textColor=HexColor("#0f766e"),
     )
 
     flowables = []
@@ -532,36 +585,46 @@ def create_single_job_pdf(job: Job, profile: Optional[Profile] = None) -> bytes:
             Paragraph("<b>Location:</b>", label_style),
             Paragraph(safe_text(job.location) or "Unknown", body_style),
             Paragraph("<b>Remote Status:</b>", label_style),
-            Paragraph((job.remote_status or "Unknown").capitalize(), body_style)
+            Paragraph((job.remote_status or "Unknown").capitalize(), body_style),
         ],
         [
             Paragraph("<b>Employment Type:</b>", label_style),
             Paragraph((job.employment_type or "Full-Time").capitalize(), body_style),
             Paragraph("<b>Salary:</b>", label_style),
-            Paragraph(safe_text(job.salary) or "Not specified", body_style)
+            Paragraph(safe_text(job.salary) or "Not specified", body_style),
         ],
         [
             Paragraph("<b>Source:</b>", label_style),
             Paragraph(safe_text(job.source), body_style),
             Paragraph("<b>Match Score:</b>", label_style),
-            Paragraph(f"{job.match_score}%" if job.match_score is not None else "N/A", body_style)
+            Paragraph(
+                f"{job.match_score}%" if job.match_score is not None else "N/A",
+                body_style,
+            ),
         ],
         [
             Paragraph("<b>App Status:</b>", label_style),
-            Paragraph((job.application_status or "not_applied").replace("_", " ").upper(), body_style),
+            Paragraph(
+                (job.application_status or "not_applied").replace("_", " ").upper(),
+                body_style,
+            ),
             Paragraph("<b>Posted Date:</b>", label_style),
-            Paragraph(format_date(job.posted_date), body_style)
-        ]
+            Paragraph(format_date(job.posted_date), body_style),
+        ],
     ]
     # Printable A4 Portrait is 595.27 - 108 = 487.27 pt.
     meta_table = Table(meta_data, colWidths=[100, 143, 100, 144])
-    meta_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), HexColor("#f3f4f6")),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('PADDING', (0, 0), (-1, -1), 6),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('GRID', (0, 0), (-1, -1), 0.5, HexColor("#cbd5e1")),
-    ]))
+    meta_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), HexColor("#f3f4f6")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("PADDING", (0, 0), (-1, -1), 6),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#cbd5e1")),
+            ]
+        )
+    )
     flowables.append(meta_table)
     flowables.append(Spacer(1, 16))
 
@@ -582,7 +645,7 @@ def create_single_job_pdf(job: Job, profile: Optional[Profile] = None) -> bytes:
     skills_p = Paragraph(
         f"<b>Matched Skills:</b> <font color='#16a34a'>{safe_text(matched_s)}</font><br/>"
         f"<b>Missing Skills:</b> <font color='#b91c1c'>{safe_text(missing_s)}</font>",
-        body_style
+        body_style,
     )
     flowables.append(skills_p)
 
@@ -608,7 +671,8 @@ def create_single_job_pdf(job: Job, profile: Optional[Profile] = None) -> bytes:
     buffer.close()
     return pdf_bytes
 
-def create_application_summary_pdf(jobs: List[Job], profile: Optional[Profile] = None) -> bytes:
+
+def create_application_summary_pdf(jobs: list[Job], profile: Profile | None = None) -> bytes:
     """
     Renders overview dashboard details (A4 Portrait) for the candidate's job hunting tracking metrics.
     """
@@ -619,7 +683,7 @@ def create_application_summary_pdf(jobs: List[Job], profile: Optional[Profile] =
         leftMargin=54,
         rightMargin=54,
         topMargin=54,
-        bottomMargin=54
+        bottomMargin=54,
     )
 
     base_styles = getSampleStyleSheet()
@@ -630,7 +694,7 @@ def create_application_summary_pdf(jobs: List[Job], profile: Optional[Profile] =
         fontName="Helvetica-Bold",
         fontSize=20,
         leading=24,
-        textColor=HexColor("#0f766e")
+        textColor=HexColor("#0f766e"),
     )
     subtitle_style = ParagraphStyle(
         name="SummarySubtitle",
@@ -638,7 +702,7 @@ def create_application_summary_pdf(jobs: List[Job], profile: Optional[Profile] =
         fontName="Helvetica-Bold",
         fontSize=10.5,
         leading=14,
-        textColor=HexColor("#4b5563")
+        textColor=HexColor("#4b5563"),
     )
     section_header_style = ParagraphStyle(
         name="SectionHeaderSummary",
@@ -648,7 +712,7 @@ def create_application_summary_pdf(jobs: List[Job], profile: Optional[Profile] =
         leading=15,
         textColor=HexColor("#0f766e"),
         spaceBefore=14,
-        spaceAfter=6
+        spaceAfter=6,
     )
     cell_style = ParagraphStyle(
         name="SummaryCellP",
@@ -656,7 +720,7 @@ def create_application_summary_pdf(jobs: List[Job], profile: Optional[Profile] =
         fontName="Helvetica",
         fontSize=8.5,
         leading=11,
-        textColor=HexColor("#1e293b")
+        textColor=HexColor("#1e293b"),
     )
 
     flowables = []
@@ -672,22 +736,26 @@ def create_application_summary_pdf(jobs: List[Job], profile: Optional[Profile] =
                 Paragraph("<b>Candidate Name:</b>", cell_style),
                 Paragraph(safe_text(profile.full_name), cell_style),
                 Paragraph("<b>Professional Title:</b>", cell_style),
-                Paragraph(safe_text(profile.professional_title), cell_style)
+                Paragraph(safe_text(profile.professional_title), cell_style),
             ],
             [
                 Paragraph("<b>Occupation Category:</b>", cell_style),
                 Paragraph(safe_text(profile.occupation_category), cell_style),
                 Paragraph("<b>Preferred Job Role:</b>", cell_style),
-                Paragraph(safe_text(profile.preferred_job_role), cell_style)
-            ]
+                Paragraph(safe_text(profile.preferred_job_role), cell_style),
+            ],
         ]
         t_profile = Table(profile_data, colWidths=[90, 153, 90, 154])
-        t_profile.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), HexColor("#f3f4f6")),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('PADDING', (0, 0), (-1, -1), 5),
-            ('GRID', (0, 0), (-1, -1), 0.5, HexColor("#e5e7eb")),
-        ]))
+        t_profile.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), HexColor("#f3f4f6")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("PADDING", (0, 0), (-1, -1), 5),
+                    ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#e5e7eb")),
+                ]
+            )
+        )
         flowables.append(t_profile)
         flowables.append(Spacer(1, 16))
 
@@ -707,41 +775,45 @@ def create_application_summary_pdf(jobs: List[Job], profile: Optional[Profile] =
             Paragraph("<b><font color='white'>Metric</font></b>", cell_style),
             Paragraph("<b><font color='white'>Count</font></b>", cell_style),
             Paragraph("<b><font color='white'>Metric</font></b>", cell_style),
-            Paragraph("<b><font color='white'>Count</font></b>", cell_style)
+            Paragraph("<b><font color='white'>Count</font></b>", cell_style),
         ],
         [
             Paragraph("Total Jobs Tracked", cell_style),
             Paragraph(str(total), cell_style),
             Paragraph("Interviewing Stage", cell_style),
-            Paragraph(str(interview), cell_style)
+            Paragraph(str(interview), cell_style),
         ],
         [
             Paragraph("Not Applied", cell_style),
             Paragraph(str(not_applied), cell_style),
             Paragraph("Offers Received", cell_style),
-            Paragraph(str(offer), cell_style)
+            Paragraph(str(offer), cell_style),
         ],
         [
             Paragraph("Saved", cell_style),
             Paragraph(str(saved), cell_style),
             Paragraph("Rejections", cell_style),
-            Paragraph(str(rejected), cell_style)
+            Paragraph(str(rejected), cell_style),
         ],
         [
             Paragraph("Applied Status", cell_style),
             Paragraph(str(applied), cell_style),
             Paragraph("Strong Matches (80+)", cell_style),
-            Paragraph(str(strong), cell_style)
-        ]
+            Paragraph(str(strong), cell_style),
+        ],
     ]
     t_metrics = Table(metrics_data, colWidths=[150, 93, 150, 94])
-    t_metrics.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), HexColor("#0f766e")),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('PADDING', (0, 0), (-1, -1), 6),
-        ('GRID', (0, 0), (-1, -1), 0.5, HexColor("#cbd5e1")),
-        ('BACKGROUND', (0, 1), (-1, -1), HexColor("#f8fafc")),
-    ]))
+    t_metrics.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), HexColor("#0f766e")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("PADDING", (0, 0), (-1, -1), 6),
+                ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#cbd5e1")),
+                ("BACKGROUND", (0, 1), (-1, -1), HexColor("#f8fafc")),
+            ]
+        )
+    )
 
     flowables.append(Paragraph("Job Hunting Metrics", section_header_style))
     flowables.append(t_metrics)
@@ -760,23 +832,41 @@ def create_application_summary_pdf(jobs: List[Job], profile: Optional[Profile] =
                 Paragraph("<b><font color='white'>Match</font></b>", cell_style),
                 Paragraph("<b><font color='white'>Job Title & Company</font></b>", cell_style),
                 Paragraph("<b><font color='white'>Status</font></b>", cell_style),
-                Paragraph("<b><font color='white'>Applied Date</font></b>", cell_style)
+                Paragraph("<b><font color='white'>Applied Date</font></b>", cell_style),
             ]
         ]
         for j in applied_jobs[:6]:
-            app_rows.append([
-                Paragraph(f"<b>{j.match_score}%</b>" if j.match_score is not None else "-", cell_style),
-                Paragraph(f"<b>{safe_text(j.title)}</b> at {safe_text(j.company_name)}", cell_style),
-                Paragraph((j.application_status or "").replace("_", " ").upper(), cell_style),
-                Paragraph(format_date(j.applied_date) if j.applied_date else format_date(j.created_at), cell_style)
-            ])
+            app_rows.append(
+                [
+                    Paragraph(
+                        f"<b>{j.match_score}%</b>" if j.match_score is not None else "-",
+                        cell_style,
+                    ),
+                    Paragraph(
+                        f"<b>{safe_text(j.title)}</b> at {safe_text(j.company_name)}",
+                        cell_style,
+                    ),
+                    Paragraph(
+                        (j.application_status or "").replace("_", " ").upper(),
+                        cell_style,
+                    ),
+                    Paragraph(
+                        format_date(j.applied_date) if j.applied_date else format_date(j.created_at),
+                        cell_style,
+                    ),
+                ]
+            )
         t_apps = Table(app_rows, colWidths=[40, 260, 97, 90])
-        t_apps.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), HexColor("#0f766e")),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('PADDING', (0, 0), (-1, -1), 5),
-            ('GRID', (0, 0), (-1, -1), 0.5, HexColor("#cbd5e1")),
-        ]))
+        t_apps.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), HexColor("#0f766e")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("PADDING", (0, 0), (-1, -1), 5),
+                    ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#cbd5e1")),
+                ]
+            )
+        )
         flowables.append(t_apps)
 
     # 4. Recent Interviews/Offers Table
@@ -791,22 +881,31 @@ def create_application_summary_pdf(jobs: List[Job], profile: Optional[Profile] =
             [
                 Paragraph("<b><font color='white'>Job Title & Company</font></b>", cell_style),
                 Paragraph("<b><font color='white'>Status</font></b>", cell_style),
-                Paragraph("<b><font color='white'>Last Updated</font></b>", cell_style)
+                Paragraph("<b><font color='white'>Last Updated</font></b>", cell_style),
             ]
         ]
         for j in int_jobs[:5]:
-            int_rows.append([
-                Paragraph(f"<b>{safe_text(j.title)}</b> at {safe_text(j.company_name)}", cell_style),
-                Paragraph((j.application_status or "").upper(), cell_style),
-                Paragraph(format_date(j.updated_at), cell_style)
-            ])
+            int_rows.append(
+                [
+                    Paragraph(
+                        f"<b>{safe_text(j.title)}</b> at {safe_text(j.company_name)}",
+                        cell_style,
+                    ),
+                    Paragraph((j.application_status or "").upper(), cell_style),
+                    Paragraph(format_date(j.updated_at), cell_style),
+                ]
+            )
         t_ints = Table(int_rows, colWidths=[310, 87, 90])
-        t_ints.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), HexColor("#0f766e")),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('PADDING', (0, 0), (-1, -1), 5),
-            ('GRID', (0, 0), (-1, -1), 0.5, HexColor("#cbd5e1")),
-        ]))
+        t_ints.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), HexColor("#0f766e")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("PADDING", (0, 0), (-1, -1), 5),
+                    ("GRID", (0, 0), (-1, -1), 0.5, HexColor("#cbd5e1")),
+                ]
+            )
+        )
         flowables.append(t_ints)
 
     doc.build(flowables)

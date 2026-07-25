@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, DateTime, Integer, String, Text
 from sqlalchemy.sql import func
+
 from app.database import Base
+
 
 class Profile(Base):
     __tablename__ = "profiles"
@@ -14,11 +16,11 @@ class Profile(Base):
     professional_summary = Column(Text, nullable=True)
 
     # List fields stored as JSON strings
-    skills = Column(Text, nullable=True)           # e.g., '["Python", "FastAPI"]'
+    skills = Column(Text, nullable=True)  # e.g., '["Python", "FastAPI"]'
     work_experience = Column(Text, nullable=True)  # e.g., '["Google - Software Dev (2020-2022)"]'
-    education = Column(Text, nullable=True)        # e.g., '["BS Computer Science"]'
-    projects = Column(Text, nullable=True)         # e.g., '["Job Finder App"]'
-    certifications = Column(Text, nullable=True)   # e.g., '["AWS Certified Developer"]'
+    education = Column(Text, nullable=True)  # e.g., '["BS Computer Science"]'
+    projects = Column(Text, nullable=True)  # e.g., '["Job Finder App"]'
+    certifications = Column(Text, nullable=True)  # e.g., '["AWS Certified Developer"]'
 
     # New fields for expanded resume parsing support
     career_objective = Column(Text, nullable=True)

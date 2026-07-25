@@ -1,10 +1,16 @@
 from datetime import UTC, datetime
-from typing import Optional, List
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+
 from app.database import get_db
 from app.models.job import Job
 from app.models.provider_run import ProviderRun
+from app.providers.ashby_boards import ASHBY_BOARDS
+from app.providers.company_career_sites import COMPANY_CAREER_SITES
+from app.providers.config import PROVIDER_SETTINGS
+from app.providers.greenhouse_boards import GREENHOUSE_BOARDS
+from app.providers.lever_sites import LEVER_SITES
 from app.schemas.job import (
     JobListResponse,
     JobNotesUpdate,
@@ -12,29 +18,25 @@ from app.schemas.job import (
     JobSearchResponse,
     JobStatusUpdate,
     JobSummaryResponse,
-    SearchAllRequest,
+    ProviderRunResponse,
     ProviderStatus,
-    ProviderRunResponse
+    SearchAllRequest,
 )
+from app.services.job_query_service import apply_job_filters, apply_job_sorting
 from app.services.job_service import (
     recalculate_all_job_matches,
+    refresh_all_job_sources,
     search_and_sync_greenhouse,
-    refresh_all_job_sources
 )
-from app.providers.config import PROVIDER_SETTINGS
-from app.providers.greenhouse_boards import GREENHOUSE_BOARDS
-from app.services.job_query_service import apply_job_filters, apply_job_sorting
-from app.providers.lever_sites import LEVER_SITES
-from app.providers.ashby_boards import ASHBY_BOARDS
-from app.providers.company_career_sites import COMPANY_CAREER_SITES
 
 router = APIRouter(prefix="/api/jobs", tags=["Jobs"])
 
+
 @router.post("/search/all")
 async def search_all(
-    payload: Optional[SearchAllRequest] = None,
+    payload: SearchAllRequest | None = None,
     force: bool = False,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Refreshes jobs from all enabled (or specified) providers concurrently.
@@ -44,15 +46,13 @@ async def search_all(
         res = await refresh_all_job_sources(db, sources=sources, force=force)
         return res
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Refetch failed: {str(e)}"
+            detail=f"Refetch failed: {e!s}",
         )
+
 
 @router.post("/search/greenhouse", response_model=JobSearchResponse)
 async def search_greenhouse(db: Session = Depends(get_db)):
@@ -65,24 +65,30 @@ async def search_greenhouse(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Greenhouse job crawl failed: {str(e)}"
+            detail=f"Greenhouse job crawl failed: {e!s}",
         )
 
+
 @router.post("/search/{provider}")
-async def search_single_provider(
-    provider: str,
-    force: bool = True,
-    db: Session = Depends(get_db)
-):
+async def search_single_provider(provider: str, force: bool = True, db: Session = Depends(get_db)):
     """
     Runs search sync for a single provider.
     """
     provider_key = provider.replace("-", "_")
-    valid_providers = ["greenhouse", "lever", "ashby", "remote_ok", "ycombinator", "hacker_news", "hasjob", "company_careers"]
+    valid_providers = [
+        "greenhouse",
+        "lever",
+        "ashby",
+        "remote_ok",
+        "ycombinator",
+        "hacker_news",
+        "hasjob",
+        "company_careers",
+    ]
     if provider_key not in valid_providers:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid provider: {provider}"
+            detail=f"Invalid provider: {provider}",
         )
 
     try:
@@ -100,35 +106,33 @@ async def search_single_provider(
             "jobs_received": 0,
             "jobs_created": 0,
             "jobs_updated": 0,
-            "errors": []
+            "errors": [],
         }
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Crawl for provider {provider} failed: {str(e)}"
+            detail=f"Crawl for provider {provider} failed: {e!s}",
         )
+
 
 @router.get("", response_model=JobListResponse)
 def get_jobs(
     db: Session = Depends(get_db),
-    search: Optional[str] = Query(None, description="Search keyword in title, company, description, or skills"),
-    company: Optional[str] = Query(None),
-    location: Optional[str] = Query(None),
-    remote_status: Optional[str] = Query(None),
-    application_status: Optional[str] = Query(None),
-    source: Optional[str] = Query(None, description="Filter by one or more sources, comma-separated"),
+    search: str | None = Query(None, description="Search keyword in title, company, description, or skills"),
+    company: str | None = Query(None),
+    location: str | None = Query(None),
+    remote_status: str | None = Query(None),
+    application_status: str | None = Query(None),
+    source: str | None = Query(None, description="Filter by one or more sources, comma-separated"),
     include_duplicates: bool = Query(False, description="Whether to include duplicate job postings"),
-    minimum_match_score: Optional[int] = Query(None),
-    posted_after: Optional[str] = Query(None, description="Filter jobs posted on or after date YYYY-MM-DD"),
+    minimum_match_score: int | None = Query(None),
+    posted_after: str | None = Query(None, description="Filter jobs posted on or after date YYYY-MM-DD"),
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1),
     sort_by: str = Query("match_score"),
-    sort_order: str = Query("desc")
+    sort_order: str = Query("desc"),
 ):
     query = db.query(Job)
 
@@ -143,15 +147,11 @@ def get_jobs(
         source=source,
         include_duplicates=include_duplicates,
         minimum_match_score=minimum_match_score,
-        posted_after=posted_after
+        posted_after=posted_after,
     )
 
     # Apply shared sorting
-    query = apply_job_sorting(
-        query=query,
-        sort_by=sort_by,
-        sort_order=sort_order
-    )
+    query = apply_job_sorting(query=query, sort_by=sort_by, sort_order=sort_order)
 
     total = query.count()
     offset = (page - 1) * page_size
@@ -163,15 +163,25 @@ def get_jobs(
         "total": total,
         "page": page,
         "page_size": page_size,
-        "total_pages": total_pages
+        "total_pages": total_pages,
     }
 
-@router.get("/providers", response_model=List[ProviderStatus])
+
+@router.get("/providers", response_model=list[ProviderStatus])
 def get_providers(db: Session = Depends(get_db)):
     """
     Returns the status and configuration data of all job sources.
     """
-    providers = ["greenhouse", "lever", "ashby", "remote_ok", "ycombinator", "hacker_news", "hasjob", "company_careers"]
+    providers = [
+        "greenhouse",
+        "lever",
+        "ashby",
+        "remote_ok",
+        "ycombinator",
+        "hacker_news",
+        "hasjob",
+        "company_careers",
+    ]
     result = []
 
     for p in providers:
@@ -184,13 +194,7 @@ def get_providers(db: Session = Depends(get_db)):
             configured_sources = len([s for s in LEVER_SITES if s.get("enabled", True)])
         elif p == "ashby":
             configured_sources = len([b for b in ASHBY_BOARDS if b.get("enabled", True)])
-        elif p == "remote_ok":
-            configured_sources = 1 if enabled else 0
-        elif p == "ycombinator":
-            configured_sources = 1 if enabled else 0
-        elif p == "hacker_news":
-            configured_sources = 1 if enabled else 0
-        elif p == "hasjob":
+        elif p == "remote_ok" or p == "ycombinator" or p == "hacker_news" or p == "hasjob":
             configured_sources = 1 if enabled else 0
         elif p == "company_careers":
             configured_sources = len([s for s in COMPANY_CAREER_SITES if s.get("enabled", True)])
@@ -198,36 +202,43 @@ def get_providers(db: Session = Depends(get_db)):
             configured_sources = 0
 
         # Query last run details
-        last_run = db.query(ProviderRun).filter(ProviderRun.source == p).order_by(ProviderRun.completed_at.desc()).first()
+        last_run = (
+            db.query(ProviderRun).filter(ProviderRun.source == p).order_by(ProviderRun.completed_at.desc()).first()
+        )
 
         if last_run:
-            result.append({
-                "source": p,
-                "enabled": enabled,
-                "configured_sources": configured_sources,
-                "last_run_at": last_run.completed_at,
-                "last_status": last_run.status,
-                "last_jobs_received": last_run.jobs_received,
-                "last_error": last_run.error_summary
-            })
+            result.append(
+                {
+                    "source": p,
+                    "enabled": enabled,
+                    "configured_sources": configured_sources,
+                    "last_run_at": last_run.completed_at,
+                    "last_status": last_run.status,
+                    "last_jobs_received": last_run.jobs_received,
+                    "last_error": last_run.error_summary,
+                }
+            )
         else:
-            result.append({
-                "source": p,
-                "enabled": enabled,
-                "configured_sources": configured_sources,
-                "last_run_at": None,
-                "last_status": "never_run",
-                "last_jobs_received": 0,
-                "last_error": None
-            })
+            result.append(
+                {
+                    "source": p,
+                    "enabled": enabled,
+                    "configured_sources": configured_sources,
+                    "last_run_at": None,
+                    "last_status": "never_run",
+                    "last_jobs_received": 0,
+                    "last_error": None,
+                }
+            )
 
     return result
 
-@router.get("/provider-runs", response_model=List[ProviderRunResponse])
+
+@router.get("/provider-runs", response_model=list[ProviderRunResponse])
 def get_provider_runs(
-    source: Optional[str] = None,
+    source: str | None = None,
     limit: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Returns a history of provider sync runs.
@@ -236,6 +247,7 @@ def get_provider_runs(
     if source:
         query = query.filter(ProviderRun.source == source)
     return query.order_by(ProviderRun.started_at.desc()).limit(limit).all()
+
 
 @router.get("/summary", response_model=JobSummaryResponse)
 def get_jobs_summary(db: Session = Depends(get_db)):
@@ -259,8 +271,9 @@ def get_jobs_summary(db: Session = Depends(get_db)):
         "interviews": interviews,
         "rejected": rejected,
         "offers": offers,
-        "strong_matches": strong_matches
+        "strong_matches": strong_matches,
     }
+
 
 @router.get("/{job_id}", response_model=JobResponse)
 def get_job(job_id: int, db: Session = Depends(get_db)):
@@ -268,9 +281,10 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Job with ID {job_id} not found."
+            detail=f"Job with ID {job_id} not found.",
         )
     return job
+
 
 @router.patch("/{job_id}/status", response_model=JobResponse)
 def update_job_status(job_id: int, status_update: JobStatusUpdate, db: Session = Depends(get_db)):
@@ -278,7 +292,7 @@ def update_job_status(job_id: int, status_update: JobStatusUpdate, db: Session =
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Job with ID {job_id} not found."
+            detail=f"Job with ID {job_id} not found.",
         )
 
     new_status = status_update.application_status
@@ -292,19 +306,21 @@ def update_job_status(job_id: int, status_update: JobStatusUpdate, db: Session =
     db.refresh(job)
     return job
 
+
 @router.patch("/{job_id}/notes", response_model=JobResponse)
 def update_job_notes(job_id: int, notes_update: JobNotesUpdate, db: Session = Depends(get_db)):
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Job with ID {job_id} not found."
+            detail=f"Job with ID {job_id} not found.",
         )
 
     job.notes = notes_update.notes
     db.commit()
     db.refresh(job)
     return job
+
 
 @router.post("/recalculate-matches")
 def recalculate_matches(db: Session = Depends(get_db)):
@@ -317,8 +333,9 @@ def recalculate_matches(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to recalculate matches: {str(e)}"
+            detail=f"Failed to recalculate matches: {e!s}",
         )
+
 
 @router.delete("/{job_id}")
 def delete_job(job_id: int, db: Session = Depends(get_db)):
@@ -326,7 +343,7 @@ def delete_job(job_id: int, db: Session = Depends(get_db)):
     if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Job with ID {job_id} not found."
+            detail=f"Job with ID {job_id} not found.",
         )
 
     db.delete(job)

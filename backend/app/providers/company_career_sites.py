@@ -24,7 +24,7 @@ COMPANY_CAREER_SITES = [
             "job_item_selector": "div.job-card",
             "title_selector": "h3.title",
             "location_selector": "span.location",
-            "url_selector": "a.apply-link"
-        }
-    }
+            "url_selector": "a.apply-link",
+        },
+    },
 ]

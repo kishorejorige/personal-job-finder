@@ -85,29 +85,52 @@ npm install
 
 ## 2. Running the Application
 
+### Option A: Running via Docker (Recommended)
+
+To run the application with full persistence and production settings using Docker Compose:
+```bash
+# Start all services (detached mode)
+docker compose up -d
+
+# Stop services (keeps your database volume)
+docker compose down
+
+# Stop services and purge data volume (destructive)
+docker compose down -v
+```
+The application will run at:
+- **Frontend URL**: `http://localhost:4200/`
+- **Backend API URL**: `http://localhost:8010/`
+
+For detailed production instructions, see [Production Deployment Guide](file:///E:/dev/projects/personal-job-finder/docs/deployment.md).
+
+### Option B: Running Locally (Development Mode)
+
 To run the application locally, open two terminal windows (one for backend and one for frontend).
 
-### Start the Backend Server
+#### Start the Backend Server
 
 Inside the `backend` folder (with `.venv` active):
 ```bash
-# Set PYTHONPATH and start uvicorn
 # On Windows (PowerShell):
-$env:PYTHONPATH="."; uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
+$env:PYTHONPATH="."; .venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8010 --reload
 
 # On Linux / macOS:
-PYTHONPATH=. uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
+PYTHONPATH=. .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8010 --reload
 ```
-- **API Base URL**: `http://127.0.0.1:8001`
-- **Interactive Documentation**: `http://127.0.0.1:8001/docs`
+- **API Base URL**: `http://127.0.0.1:8010`
+- **Interactive Documentation**: `http://127.0.0.1:8010/docs`
 
-### Start the Angular Frontend
+#### Start the Angular Frontend
 
 Inside the `frontend` folder:
 ```bash
 npm start
 ```
 The application will run at: `http://localhost:4200/`
+
+For security practices, see [Security and Access Protection Guide](file:///E:/dev/projects/personal-job-finder/docs/security.md).
+
 
 ---
 

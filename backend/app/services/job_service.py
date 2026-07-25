@@ -1,33 +1,48 @@
+import asyncio
 import json
 import logging
-import asyncio
 import re
-from datetime import datetime, UTC
+from datetime import UTC, datetime
+
 from sqlalchemy.orm import Session
+
 from app.models.job import Job
 from app.models.profile import Profile
 from app.models.provider_run import ProviderRun
-from app.services.job_parser import clean_html, detect_remote_status, extract_skills_from_text
-from app.services.job_matcher import calculate_match
 
 # Import base provider and implementations
 from app.providers import (
-    JobProvider,
-    ProviderFetchResult,
-    GreenhouseProvider,
-    LeverProvider,
     AshbyProvider,
+    CompanyCareersProvider,
+    GreenhouseProvider,
+    HasjobProvider,
+    JobProvider,
+    LeverProvider,
     RemoteOkProvider,
     YCombinatorProvider,
-    HasjobProvider,
-    CompanyCareersProvider
 )
 from app.providers.config import PROVIDER_SETTINGS
+from app.services.job_matcher import calculate_match
+from app.services.job_parser import (
+    clean_html,
+    detect_remote_status,
+    extract_skills_from_text,
+)
 
 logger = logging.getLogger(__name__)
 
 # Priority map for duplicate resolution (preferred sources first)
-SOURCE_PRIORITY = ["company_careers", "greenhouse", "lever", "ashby", "ycombinator", "hacker_news", "hasjob", "remote_ok"]
+SOURCE_PRIORITY = [
+    "company_careers",
+    "greenhouse",
+    "lever",
+    "ashby",
+    "ycombinator",
+    "hacker_news",
+    "hasjob",
+    "remote_ok",
+]
+
 
 def generate_fingerprint(company: str, title: str, location: str) -> str:
     def normalize(text: str) -> str:
@@ -35,13 +50,14 @@ def generate_fingerprint(company: str, title: str, location: str) -> str:
             return ""
         text = text.lower()
         # Remove non-alphanumeric and collapse whitespaces
-        text = re.sub(r'[^a-z0-9]', ' ', text)
+        text = re.sub(r"[^a-z0-9]", " ", text)
         return " ".join(text.split())
 
     c = normalize(company)
     t = normalize(title)
     l = normalize(location or "unknown")
     return f"{c}|{t}|{l}"
+
 
 def resolve_duplicates(db: Session):
     """
@@ -76,6 +92,7 @@ def resolve_duplicates(db: Session):
 
     db.commit()
 
+
 async def process_and_save_jobs(db: Session, raw_jobs: list[dict], source_name: str) -> tuple[int, int]:
     """
     Transforms, matches, and persists raw jobs into the database.
@@ -103,29 +120,30 @@ async def process_and_save_jobs(db: Session, raw_jobs: list[dict], source_name: 
             job_skills=detected_skills,
             job_remote=detected_remote,
             job_location=raw.get("location") or "Unknown",
-            profile=profile
+            profile=profile,
         )
 
         fingerprint = generate_fingerprint(
             company=raw.get("company_name", ""),
             title=raw.get("title", ""),
-            location=raw.get("location", "")
+            location=raw.get("location", ""),
         )
 
         # Duplicate check: check source + external_id first
         existing = None
         ext_id = raw.get("external_id")
         if ext_id:
-            existing = db.query(Job).filter(
-                Job.source == raw["source"],
-                Job.external_id == ext_id
-            ).first()
+            existing = db.query(Job).filter(Job.source == raw["source"], Job.external_id == ext_id).first()
         else:
-            existing = db.query(Job).filter(
-                Job.company_name == raw["company_name"],
-                Job.title == raw["title"],
-                Job.original_url == raw["original_url"]
-            ).first()
+            existing = (
+                db.query(Job)
+                .filter(
+                    Job.company_name == raw["company_name"],
+                    Job.title == raw["title"],
+                    Job.original_url == raw["original_url"],
+                )
+                .first()
+            )
 
         skills_str = json.dumps(detected_skills)
         matched_str = json.dumps(match_result["matched_skills"])
@@ -167,13 +185,14 @@ async def process_and_save_jobs(db: Session, raw_jobs: list[dict], source_name: 
                 match_score=match_result["match_score"],
                 application_status="not_applied",
                 job_fingerprint=fingerprint,
-                last_seen_at=datetime.now(UTC)
+                last_seen_at=datetime.now(UTC),
             )
             db.add(new_job)
             jobs_created += 1
 
     db.commit()
     return jobs_created, jobs_updated
+
 
 def create_provider(provider_name: str) -> JobProvider:
     if provider_name == "greenhouse":
@@ -188,6 +207,7 @@ def create_provider(provider_name: str) -> JobProvider:
         return YCombinatorProvider()
     elif provider_name == "hacker_news":
         from app.providers.hacker_news import HackerNewsProvider
+
         return HackerNewsProvider()
     elif provider_name == "hasjob":
         return HasjobProvider()
@@ -195,6 +215,7 @@ def create_provider(provider_name: str) -> JobProvider:
         return CompanyCareersProvider()
     else:
         raise ValueError(f"Unknown provider: {provider_name}")
+
 
 async def refresh_all_job_sources(db: Session, sources: list[str] = None, force: bool = False) -> dict:
     """
@@ -205,16 +226,27 @@ async def refresh_all_job_sources(db: Session, sources: list[str] = None, force:
 
     # Cooldown check
     if not force:
-        latest_run = db.query(ProviderRun).filter(
-            ProviderRun.source == "all",
-            ProviderRun.status == "success"
-        ).order_by(ProviderRun.completed_at.desc()).first()
+        latest_run = (
+            db.query(ProviderRun)
+            .filter(ProviderRun.source == "all", ProviderRun.status == "success")
+            .order_by(ProviderRun.completed_at.desc())
+            .first()
+        )
         if latest_run and latest_run.completed_at:
             time_diff = (started_at - latest_run.completed_at.replace(tzinfo=UTC)).total_seconds()
-            if time_diff < 600: # 10 minutes
+            if time_diff < 600:  # 10 minutes
                 raise ValueError("A refresh was completed recently. Use force=true to refresh again.")
 
-    available_providers = ["greenhouse", "lever", "ashby", "remote_ok", "ycombinator", "hacker_news", "hasjob", "company_careers"]
+    available_providers = [
+        "greenhouse",
+        "lever",
+        "ashby",
+        "remote_ok",
+        "ycombinator",
+        "hacker_news",
+        "hasjob",
+        "company_careers",
+    ]
     if sources:
         run_sources = [s for s in sources if s in available_providers]
     else:
@@ -315,22 +347,24 @@ async def refresh_all_job_sources(db: Session, sources: list[str] = None, force:
                 jobs_received=jobs_rcvd,
                 jobs_created=jobs_cre,
                 jobs_updated=jobs_upd,
-                error_summary=error_summary_str
+                error_summary=error_summary_str,
             )
             db.add(p_run)
             db.commit()
 
-            provider_results.append({
-                "source": src,
-                "status": status,
-                "sources_checked": sources_checked,
-                "sources_succeeded": sources_succeeded,
-                "sources_failed": sources_failed_count,
-                "jobs_received": jobs_rcvd,
-                "jobs_created": jobs_cre,
-                "jobs_updated": jobs_upd,
-                "errors": errors_list
-            })
+            provider_results.append(
+                {
+                    "source": src,
+                    "status": status,
+                    "sources_checked": sources_checked,
+                    "sources_succeeded": sources_succeeded,
+                    "sources_failed": sources_failed_count,
+                    "jobs_received": jobs_rcvd,
+                    "jobs_created": jobs_cre,
+                    "jobs_updated": jobs_upd,
+                    "errors": errors_list,
+                }
+            )
 
     if enabled_sources:
         await asyncio.gather(*(run_one(src) for src in enabled_sources))
@@ -359,7 +393,7 @@ async def refresh_all_job_sources(db: Session, sources: list[str] = None, force:
         jobs_received=total_received,
         jobs_created=total_created,
         jobs_updated=total_updated,
-        error_summary=None
+        error_summary=None,
     )
     db.add(all_run)
     db.commit()
@@ -372,8 +406,9 @@ async def refresh_all_job_sources(db: Session, sources: list[str] = None, force:
         "jobs_updated": total_updated,
         "providers_succeeded": providers_succeeded,
         "providers_failed": providers_failed,
-        "provider_results": provider_results
+        "provider_results": provider_results,
     }
+
 
 async def search_and_sync_greenhouse(db: Session) -> dict:
     """
@@ -384,7 +419,12 @@ async def search_and_sync_greenhouse(db: Session) -> dict:
         if r["source"] == "greenhouse":
             errors = []
             for err in r["errors"]:
-                errors.append({"board": err.get("board") or "greenhouse", "message": err.get("message")})
+                errors.append(
+                    {
+                        "board": err.get("board") or "greenhouse",
+                        "message": err.get("message"),
+                    }
+                )
             return {
                 "source": "greenhouse",
                 "boards_checked": r["sources_checked"],
@@ -393,7 +433,7 @@ async def search_and_sync_greenhouse(db: Session) -> dict:
                 "jobs_received": r["jobs_received"],
                 "jobs_created": r["jobs_created"],
                 "jobs_updated": r["jobs_updated"],
-                "errors": errors
+                "errors": errors,
             }
     return {
         "source": "greenhouse",
@@ -403,8 +443,9 @@ async def search_and_sync_greenhouse(db: Session) -> dict:
         "jobs_received": 0,
         "jobs_created": 0,
         "jobs_updated": 0,
-        "errors": []
+        "errors": [],
     }
+
 
 def recalculate_all_job_matches(db: Session) -> int:
     """
@@ -426,7 +467,7 @@ def recalculate_all_job_matches(db: Session) -> int:
             job_skills=job_skills,
             job_remote=job.remote_status or "unknown",
             job_location=job.location or "Unknown",
-            profile=profile
+            profile=profile,
         )
 
         job.matched_skills = json.dumps(match_result["matched_skills"])

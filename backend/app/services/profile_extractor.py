@@ -1,46 +1,219 @@
 import re
-from typing import Dict, Any, List
+from typing import Any
 
 # Vocabulary dictionaries for Skill recognition
 IT_SKILLS = {
-    "python", "java", "javascript", "typescript", "angular", "react", "fastapi", "django", "sql", "postgresql",
-    "docker", "aws", "azure", "linux", "git", "machine learning", "ai", "rag", "rest api", "c++", "c#",
-    "html", "css", "kubernetes", "flask", "springboot", "spring", "golang", "devops", "ci/cd", "mongodb", "redis",
-    "php", "node.js", "nodejs", "graphql", "bootstrap", "tailwind"
+    "python",
+    "java",
+    "javascript",
+    "typescript",
+    "angular",
+    "react",
+    "fastapi",
+    "django",
+    "sql",
+    "postgresql",
+    "docker",
+    "aws",
+    "azure",
+    "linux",
+    "git",
+    "machine learning",
+    "ai",
+    "rag",
+    "rest api",
+    "c++",
+    "c#",
+    "html",
+    "css",
+    "kubernetes",
+    "flask",
+    "springboot",
+    "spring",
+    "golang",
+    "devops",
+    "ci/cd",
+    "mongodb",
+    "redis",
+    "php",
+    "node.js",
+    "nodejs",
+    "graphql",
+    "bootstrap",
+    "tailwind",
 }
 
-ADMIN_SKILLS = {"data entry", "ms office", "microsoft excel", "microsoft word", "documentation", "office administration", "record keeping", "scheduling", "billing", "inventory management"}
-SALES_SKILLS = {"sales", "lead generation", "customer relationship management", "negotiation", "marketing", "digital marketing", "retail sales", "field sales", "business development", "customer acquisition"}
-FINANCE_SKILLS = {"accounting", "bookkeeping", "tally", "gst", "taxation", "payroll", "invoicing", "accounts payable", "accounts receivable", "financial reporting"}
-SERVICE_SKILLS = {"customer support", "call handling", "email support", "complaint resolution", "crm", "communication", "problem solving"}
-EDUCATION_SKILLS = {"teaching", "lesson planning", "classroom management", "student assessment", "training", "curriculum development"}
-HEALTH_SKILLS = {"patient care", "nursing", "medical records", "first aid", "clinical support", "pharmacy", "healthcare administration"}
-TRADE_SKILLS = {"electrical wiring", "electronics", "equipment maintenance", "machine operation", "repair", "troubleshooting", "installation", "preventive maintenance", "quality inspection", "safety procedures"}
-LOGISTICS_SKILLS = {"warehouse operations", "dispatch", "delivery", "driving", "route planning", "stock management", "packing", "supply chain", "procurement"}
-HOSPITALITY_SKILLS = {"food service", "housekeeping", "front office", "guest relations", "hotel operations", "cooking", "kitchen support"}
+ADMIN_SKILLS = {
+    "data entry",
+    "ms office",
+    "microsoft excel",
+    "microsoft word",
+    "documentation",
+    "office administration",
+    "record keeping",
+    "scheduling",
+    "billing",
+    "inventory management",
+}
+SALES_SKILLS = {
+    "sales",
+    "lead generation",
+    "customer relationship management",
+    "negotiation",
+    "marketing",
+    "digital marketing",
+    "retail sales",
+    "field sales",
+    "business development",
+    "customer acquisition",
+}
+FINANCE_SKILLS = {
+    "accounting",
+    "bookkeeping",
+    "tally",
+    "gst",
+    "taxation",
+    "payroll",
+    "invoicing",
+    "accounts payable",
+    "accounts receivable",
+    "financial reporting",
+}
+SERVICE_SKILLS = {
+    "customer support",
+    "call handling",
+    "email support",
+    "complaint resolution",
+    "crm",
+    "communication",
+    "problem solving",
+}
+EDUCATION_SKILLS = {
+    "teaching",
+    "lesson planning",
+    "classroom management",
+    "student assessment",
+    "training",
+    "curriculum development",
+}
+HEALTH_SKILLS = {
+    "patient care",
+    "nursing",
+    "medical records",
+    "first aid",
+    "clinical support",
+    "pharmacy",
+    "healthcare administration",
+}
+TRADE_SKILLS = {
+    "electrical wiring",
+    "electronics",
+    "equipment maintenance",
+    "machine operation",
+    "repair",
+    "troubleshooting",
+    "installation",
+    "preventive maintenance",
+    "quality inspection",
+    "safety procedures",
+}
+LOGISTICS_SKILLS = {
+    "warehouse operations",
+    "dispatch",
+    "delivery",
+    "driving",
+    "route planning",
+    "stock management",
+    "packing",
+    "supply chain",
+    "procurement",
+}
+HOSPITALITY_SKILLS = {
+    "food service",
+    "housekeeping",
+    "front office",
+    "guest relations",
+    "hotel operations",
+    "cooking",
+    "kitchen support",
+}
 
 SOFT_SKILLS = {
-    "communication", "teamwork", "leadership", "time management", "problem solving",
-    "adaptability", "attention to detail", "organisation", "organization", "customer service"
+    "communication",
+    "teamwork",
+    "leadership",
+    "time management",
+    "problem solving",
+    "adaptability",
+    "attention to detail",
+    "organisation",
+    "organization",
+    "customer service",
 }
 
-LANGUAGES_LIST = ["English", "Hindi", "Telugu", "Tamil", "Kannada", "Malayalam", "Marathi", "Urdu", "Spanish", "French", "German"]
+LANGUAGES_LIST = [
+    "English",
+    "Hindi",
+    "Telugu",
+    "Tamil",
+    "Kannada",
+    "Malayalam",
+    "Marathi",
+    "Urdu",
+    "Spanish",
+    "French",
+    "German",
+]
 
 CORRECT_CASINGS = {
-    "python": "Python", "java": "Java", "javascript": "JavaScript", "typescript": "TypeScript",
-    "angular": "Angular", "react": "React", "fastapi": "FastAPI", "django": "Django",
-    "sql": "SQL", "postgresql": "PostgreSQL", "docker": "Docker", "aws": "AWS",
-    "azure": "Azure", "linux": "Linux", "git": "Git", "machine learning": "Machine Learning",
-    "ai": "AI", "rag": "RAG", "rest api": "REST API", "c++": "C++", "c#": "C#",
-    "html": "HTML", "css": "CSS", "kubernetes": "Kubernetes", "flask": "Flask",
-    "springboot": "Spring Boot", "spring": "Spring", "golang": "Golang", "devops": "DevOps",
-    "ci/cd": "CI/CD", "mongodb": "MongoDB", "redis": "Redis", "php": "PHP",
-    "node.js": "Node.js", "nodejs": "Node.js", "graphql": "GraphQL", "bootstrap": "Bootstrap",
-    "tailwind": "Tailwind", "ms office": "MS Office", "crm": "CRM", "gst": "GST",
-    "pdf": "PDF", "tally": "Tally", "tally prime": "Tally Prime"
+    "python": "Python",
+    "java": "Java",
+    "javascript": "JavaScript",
+    "typescript": "TypeScript",
+    "angular": "Angular",
+    "react": "React",
+    "fastapi": "FastAPI",
+    "django": "Django",
+    "sql": "SQL",
+    "postgresql": "PostgreSQL",
+    "docker": "Docker",
+    "aws": "AWS",
+    "azure": "Azure",
+    "linux": "Linux",
+    "git": "Git",
+    "machine learning": "Machine Learning",
+    "ai": "AI",
+    "rag": "RAG",
+    "rest api": "REST API",
+    "c++": "C++",
+    "c#": "C#",
+    "html": "HTML",
+    "css": "CSS",
+    "kubernetes": "Kubernetes",
+    "flask": "Flask",
+    "springboot": "Spring Boot",
+    "spring": "Spring",
+    "golang": "Golang",
+    "devops": "DevOps",
+    "ci/cd": "CI/CD",
+    "mongodb": "MongoDB",
+    "redis": "Redis",
+    "php": "PHP",
+    "node.js": "Node.js",
+    "nodejs": "Node.js",
+    "graphql": "GraphQL",
+    "bootstrap": "Bootstrap",
+    "tailwind": "Tailwind",
+    "ms office": "MS Office",
+    "crm": "CRM",
+    "gst": "GST",
+    "pdf": "PDF",
+    "tally": "Tally",
+    "tally prime": "Tally Prime",
 }
 
-def extract_profile_from_text(text: str) -> Dict[str, Any]:
+
+def extract_profile_from_text(text: str) -> dict[str, Any]:
     profile = {
         "full_name": "",
         "email": "",
@@ -70,20 +243,20 @@ def extract_profile_from_text(text: str) -> Dict[str, Any]:
         "licences": [],
         "tools_and_equipment": [],
         "additional_information": "",
-        "resume_quality": "minimal"
+        "resume_quality": "minimal",
     }
 
     if not text:
         return profile
 
     # Basic normalization of line breaks
-    text = text.replace('\r\n', '\n').replace('\r', '\n')
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
     lines = text.splitlines()
     non_empty_lines = [l.strip() for l in lines if l.strip()]
 
     # Layer 1: Contact Extraction
-    email_pattern = r'[\w\.-]+@[\w\.-]+\.\w+'
-    phone_pattern = r'(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\+?\d{10,12}'
+    email_pattern = r"[\w\.-]+@[\w\.-]+\.\w+"
+    phone_pattern = r"(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\+?\d{10,12}"
 
     email_match = re.search(email_pattern, text)
     if email_match:
@@ -97,18 +270,45 @@ def extract_profile_from_text(text: str) -> Dict[str, Any]:
     headings_map = {
         "SUMMARY": ["SUMMARY", "PROFESSIONAL SUMMARY", "PROFILE", "ABOUT ME"],
         "OBJECTIVE": ["CAREER OBJECTIVE", "OBJECTIVE"],
-        "SKILLS": ["SKILLS", "KEY SKILLS", "EXPERTISE", "TECHNOLOGIES", "CORE COMPETENCIES"],
+        "SKILLS": [
+            "SKILLS",
+            "KEY SKILLS",
+            "EXPERTISE",
+            "TECHNOLOGIES",
+            "CORE COMPETENCIES",
+        ],
         "TECHNICAL_SKILLS": ["TECHNICAL SKILLS", "HARD SKILLS"],
         "SOFT_SKILLS": ["SOFT SKILLS", "INTERPERSONAL SKILLS"],
-        "EXPERIENCE": ["EXPERIENCE", "WORK EXPERIENCE", "EMPLOYMENT", "WORK HISTORY", "EMPLOYMENT HISTORY", "PROFESSIONAL EXPERIENCE", "CAREER HISTORY"],
-        "EDUCATION": ["EDUCATION", "ACADEMIC BACKGROUND", "ACADEMIC DETAILS", "ACADEMICS", "QUALIFICATIONS", "STUDIES", "ACADEMIC QUALIFICATIONS"],
-        "PROJECTS": ["PROJECTS", "KEY PROJECTS", "PERSONAL PROJECTS", "ACADEMIC PROJECTS"],
+        "EXPERIENCE": [
+            "EXPERIENCE",
+            "WORK EXPERIENCE",
+            "EMPLOYMENT",
+            "WORK HISTORY",
+            "EMPLOYMENT HISTORY",
+            "PROFESSIONAL EXPERIENCE",
+            "CAREER HISTORY",
+        ],
+        "EDUCATION": [
+            "EDUCATION",
+            "ACADEMIC BACKGROUND",
+            "ACADEMIC DETAILS",
+            "ACADEMICS",
+            "QUALIFICATIONS",
+            "STUDIES",
+            "ACADEMIC QUALIFICATIONS",
+        ],
+        "PROJECTS": [
+            "PROJECTS",
+            "KEY PROJECTS",
+            "PERSONAL PROJECTS",
+            "ACADEMIC PROJECTS",
+        ],
         "CERTIFICATIONS": ["CERTIFICATIONS", "CREDENTIALS"],
         "TRAINING": ["TRAINING", "COURSES", "VOCATIONAL TRAINING"],
         "INTERNSHIPS": ["INTERNSHIPS", "APPRENTICESHIPS"],
         "LICENCES": ["LICENCES", "LICENSES"],
         "TOOLS_AND_EQUIPMENT": ["TOOLS", "EQUIPMENT", "TOOLS AND EQUIPMENT"],
-        "ACHIEVEMENTS": ["ACHIEVEMENTS", "AWARDS", "HONORS"]
+        "ACHIEVEMENTS": ["ACHIEVEMENTS", "AWARDS", "HONORS"],
     }
 
     # Helper maps for general extraction
@@ -159,14 +359,14 @@ def extract_profile_from_text(text: str) -> Dict[str, Any]:
     for line in non_empty_lines[:5]:
         if "@" in line or any(k in line.lower() for k in ["http", "www", "github", "linkedin", "phone", "email"]):
             continue
-        if len(re.findall(r'\d', line)) >= 4:
+        if len(re.findall(r"\d", line)) >= 4:
             continue
         words = line.split()
         if not name_candidate and 1 <= len(words) <= 4:
             name_candidate = line
             continue
         if name_candidate and not title_candidate and len(line) < 40:
-            if re.search(r'[A-Za-z\s]{2,},\s*[A-Za-z]{2,}', line):
+            if re.search(r"[A-Za-z\s]{2,},\s*[A-Za-z]{2,}", line):
                 continue
             title_candidate = line
 
@@ -178,7 +378,7 @@ def extract_profile_from_text(text: str) -> Dict[str, Any]:
     profile["career_objective"] = "\n".join(sections_content["OBJECTIVE"]).strip()
 
     # Generic bulleted cleaner
-    def clean_section_list(raw_lines: List[str]) -> List[str]:
+    def clean_section_list(raw_lines: list[str]) -> list[str]:
         items = []
         current_item = []
         for line in raw_lines:
@@ -214,8 +414,21 @@ def extract_profile_from_text(text: str) -> Dict[str, Any]:
     profile["tools_and_equipment"] = clean_section_list(sections_content["TOOLS_AND_EQUIPMENT"])
 
     # Location heuristic from first 10 lines
-    location_pattern = r'([A-Za-z\s]{2,},\s*[A-Za-z\s]{2,})'
-    tech_keywords = {"python", "fastapi", "developer", "engineer", "skills", "docker", "sql", "java", "c++", "c#", "react", "angular"}
+    location_pattern = r"([A-Za-z\s]{2,},\s*[A-Za-z\s]{2,})"
+    tech_keywords = {
+        "python",
+        "fastapi",
+        "developer",
+        "engineer",
+        "skills",
+        "docker",
+        "sql",
+        "java",
+        "c++",
+        "c#",
+        "react",
+        "angular",
+    }
     for line in non_empty_lines[:10]:
         if "@" in line or "http" in line:
             continue
@@ -230,20 +443,37 @@ def extract_profile_from_text(text: str) -> Dict[str, Any]:
 
     # Layer 3: Skill Recognition (IT, Trade/Non-IT, Soft Skills)
     explicit_skills = []
-    for sec_name in ["SKILLS", "TECHNICAL_SKILLS", "SOFT_SKILLS", "TOOLS_AND_EQUIPMENT"]:
+    for sec_name in [
+        "SKILLS",
+        "TECHNICAL_SKILLS",
+        "SOFT_SKILLS",
+        "TOOLS_AND_EQUIPMENT",
+    ]:
         for line in sections_content[sec_name]:
-            for p in re.split(r'[,;]', line):
+            for p in re.split(r"[,;]", line):
                 p_clean = p.strip().strip("•-*· ")
                 if p_clean:
                     explicit_skills.append(p_clean)
 
     scanned_skills = []
     text_lower = text.lower()
-    all_vocab = IT_SKILLS | ADMIN_SKILLS | SALES_SKILLS | FINANCE_SKILLS | SERVICE_SKILLS | EDUCATION_SKILLS | HEALTH_SKILLS | TRADE_SKILLS | LOGISTICS_SKILLS | HOSPITALITY_SKILLS | SOFT_SKILLS
+    all_vocab = (
+        IT_SKILLS
+        | ADMIN_SKILLS
+        | SALES_SKILLS
+        | FINANCE_SKILLS
+        | SERVICE_SKILLS
+        | EDUCATION_SKILLS
+        | HEALTH_SKILLS
+        | TRADE_SKILLS
+        | LOGISTICS_SKILLS
+        | HOSPITALITY_SKILLS
+        | SOFT_SKILLS
+    )
 
     for s in all_vocab:
         if s in ["ai", "rag", "git", "sql", "crm", "gst"]:
-            pattern = r'\b' + re.escape(s) + r'\b'
+            pattern = r"\b" + re.escape(s) + r"\b"
         else:
             pattern = re.escape(s)
         if re.search(pattern, text_lower):
@@ -264,7 +494,9 @@ def extract_profile_from_text(text: str) -> Dict[str, Any]:
             s_clean = CORRECT_CASINGS[s_lower]
         else:
             words = s.split()
-            s_clean = " ".join(w.capitalize() if w.lower() not in ["ms", "crm", "gst", "pdf"] else w.upper() for w in words)
+            s_clean = " ".join(
+                w.capitalize() if w.lower() not in ["ms", "crm", "gst", "pdf"] else w.upper() for w in words
+            )
 
         # Categorize
         if s_lower in SOFT_SKILLS:
@@ -279,12 +511,12 @@ def extract_profile_from_text(text: str) -> Dict[str, Any]:
     # Languages Check
     detected_langs = []
     for lang in LANGUAGES_LIST:
-        if re.search(r'\b' + re.escape(lang.lower()) + r'\b', text_lower):
+        if re.search(r"\b" + re.escape(lang.lower()) + r"\b", text_lower):
             detected_langs.append(lang)
     profile["languages"] = list(set(detected_langs))
 
     # Experience Heuristics: total years, current company, current role
-    exp_match = re.search(r'(\d+)\+?\s*(?:years?|yrs?)\s+(?:of\s+)?experience', text, re.IGNORECASE)
+    exp_match = re.search(r"(\d+)\+?\s*(?:years?|yrs?)\s+(?:of\s+)?experience", text, re.IGNORECASE)
     if exp_match:
         profile["total_experience"] = f"{exp_match.group(1)} years"
     elif profile["work_experience"]:
@@ -303,8 +535,8 @@ def extract_profile_from_text(text: str) -> Dict[str, Any]:
                 role = parts[0].strip()
                 company = parts[1].strip()
                 break
-        profile["current_company"] = re.sub(r'\(.*?\)', '', company).strip()
-        profile["current_role"] = re.sub(r'\(.*?\)', '', role).strip()
+        profile["current_company"] = re.sub(r"\(.*?\)", "", company).strip()
+        profile["current_role"] = re.sub(r"\(.*?\)", "", role).strip()
 
     # Preferred locations/roles heuristics
     if profile["professional_title"]:
@@ -316,20 +548,164 @@ def extract_profile_from_text(text: str) -> Dict[str, Any]:
     profile_text_to_cat = f"{profile['professional_title']} {profile['career_objective']} {profile['professional_summary']} {' '.join(profile['skills'])} {' '.join(profile['work_experience'])}".lower()
 
     categories_keywords = {
-        "IT and Software": ["developer", "programmer", "software", "python", "java", "javascript", "react", "angular", "fullstack", "backend", "frontend", "devops", "cloud", "aws", "azure", "database", "fastapi", "django"],
-        "Engineering": ["mechanical engineer", "civil engineer", "chemical engineer", "cad designer", "solidworks", "structural engineer", "engineering"],
-        "Electronics and Electrical": ["electrician", "electrical wiring", "electronics", "circuit", "soldering", "hardware technician", "embedded"],
-        "Accounting and Finance": ["accountant", "accounting", "bookkeeping", "gst", "tally", "taxation", "finance", "audit", "accounts payable", "accounts receivable", "invoice", "payroll"],
-        "Sales and Marketing": ["sales", "marketing", "business development", "lead generation", "digital marketing", "seo", "sales executive", "customer acquisition"],
-        "Administration": ["administrator", "office admin", "data entry", "secretary", "clerk", "billing", "scheduling", "record keeping", "documentation"],
-        "Customer Service": ["customer support", "call handling", "customer service", "support executive", "helpdesk", "help desk", "call center"],
-        "Education": ["teacher", "teaching", "professor", "tutor", "lesson planning", "student assessment", "curriculum development", "classroom management", "school", "college", "academic"],
-        "Healthcare": ["nurse", "nursing", "patient care", "medical", "healthcare", "clinic", "pharmacy", "pharmacist", "doctor", "clinical", "hospital"],
-        "Logistics and Operations": ["warehouse", "dispatch", "delivery", "driver", "driving", "route planning", "logistics", "supply chain", "procurement", "stock management"],
-        "Hospitality": ["hotel", "cooking", "guest relations", "housekeeping", "front office", "food service", "chef", "kitchen support", "restaurant"],
-        "Skilled Trades": ["mechanic", "technician", "welder", "plumber", "carpenter", "HVAC", "repair", "maintenance technician"],
-        "Human Resources": ["recruiter", "recruitment", "human resources", "hr professional", "talent acquisition", "onboarding"],
-        "Fresher or Student": ["student", "fresher", "intern", "internship", "entry-level", "graduate", "college student"]
+        "IT and Software": [
+            "developer",
+            "programmer",
+            "software",
+            "python",
+            "java",
+            "javascript",
+            "react",
+            "angular",
+            "fullstack",
+            "backend",
+            "frontend",
+            "devops",
+            "cloud",
+            "aws",
+            "azure",
+            "database",
+            "fastapi",
+            "django",
+        ],
+        "Engineering": [
+            "mechanical engineer",
+            "civil engineer",
+            "chemical engineer",
+            "cad designer",
+            "solidworks",
+            "structural engineer",
+            "engineering",
+        ],
+        "Electronics and Electrical": [
+            "electrician",
+            "electrical wiring",
+            "electronics",
+            "circuit",
+            "soldering",
+            "hardware technician",
+            "embedded",
+        ],
+        "Accounting and Finance": [
+            "accountant",
+            "accounting",
+            "bookkeeping",
+            "gst",
+            "tally",
+            "taxation",
+            "finance",
+            "audit",
+            "accounts payable",
+            "accounts receivable",
+            "invoice",
+            "payroll",
+        ],
+        "Sales and Marketing": [
+            "sales",
+            "marketing",
+            "business development",
+            "lead generation",
+            "digital marketing",
+            "seo",
+            "sales executive",
+            "customer acquisition",
+        ],
+        "Administration": [
+            "administrator",
+            "office admin",
+            "data entry",
+            "secretary",
+            "clerk",
+            "billing",
+            "scheduling",
+            "record keeping",
+            "documentation",
+        ],
+        "Customer Service": [
+            "customer support",
+            "call handling",
+            "customer service",
+            "support executive",
+            "helpdesk",
+            "help desk",
+            "call center",
+        ],
+        "Education": [
+            "teacher",
+            "teaching",
+            "professor",
+            "tutor",
+            "lesson planning",
+            "student assessment",
+            "curriculum development",
+            "classroom management",
+            "school",
+            "college",
+            "academic",
+        ],
+        "Healthcare": [
+            "nurse",
+            "nursing",
+            "patient care",
+            "medical",
+            "healthcare",
+            "clinic",
+            "pharmacy",
+            "pharmacist",
+            "doctor",
+            "clinical",
+            "hospital",
+        ],
+        "Logistics and Operations": [
+            "warehouse",
+            "dispatch",
+            "delivery",
+            "driver",
+            "driving",
+            "route planning",
+            "logistics",
+            "supply chain",
+            "procurement",
+            "stock management",
+        ],
+        "Hospitality": [
+            "hotel",
+            "cooking",
+            "guest relations",
+            "housekeeping",
+            "front office",
+            "food service",
+            "chef",
+            "kitchen support",
+            "restaurant",
+        ],
+        "Skilled Trades": [
+            "mechanic",
+            "technician",
+            "welder",
+            "plumber",
+            "carpenter",
+            "HVAC",
+            "repair",
+            "maintenance technician",
+        ],
+        "Human Resources": [
+            "recruiter",
+            "recruitment",
+            "human resources",
+            "hr professional",
+            "talent acquisition",
+            "onboarding",
+        ],
+        "Fresher or Student": [
+            "student",
+            "fresher",
+            "intern",
+            "internship",
+            "entry-level",
+            "graduate",
+            "college student",
+        ],
     }
 
     scores = {cat: 0 for cat in categories_keywords}
@@ -350,7 +726,13 @@ def extract_profile_from_text(text: str) -> Dict[str, Any]:
     # Prepend unclassified header lines that aren't the name/title/contacts
     header_unclassified = []
     for line in unclassified_lines:
-        if line != name_candidate and line != title_candidate and line != profile["email"] and line != profile["phone"] and line != profile["location"]:
+        if (
+            line != name_candidate
+            and line != title_candidate
+            and line != profile["email"]
+            and line != profile["phone"]
+            and line != profile["location"]
+        ):
             header_unclassified.append(line)
 
     if header_unclassified:

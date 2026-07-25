@@ -1,9 +1,11 @@
-import httpx
 import logging
-from typing import List, Dict, Any
+
+import httpx
+
 from app.providers.base import JobProvider, ProviderFetchResult
 
 logger = logging.getLogger(__name__)
+
 
 class RemoteOkProvider(JobProvider):
     provider_name = "remote_ok"
@@ -16,9 +18,7 @@ class RemoteOkProvider(JobProvider):
         sources_failed = 0
 
         # Remote OK requires a clear User-Agent header or returns 403
-        headers = {
-            "User-Agent": "PersonalJobFinder/1.0 (contact: support@personaljobfinder.local)"
-        }
+        headers = {"User-Agent": "PersonalJobFinder/1.0 (contact: support@personaljobfinder.local)"}
         url = "https://remoteok.com/api"
 
         response_data = None
@@ -41,7 +41,7 @@ class RemoteOkProvider(JobProvider):
                     if attempt == 1:
                         errors.append({"source": "remote_ok", "message": err_msg})
             except (httpx.RequestError, httpx.TimeoutException) as e:
-                err_msg = f"Network failure: {str(e)}"
+                err_msg = f"Network failure: {e!s}"
                 if attempt == 1:
                     errors.append({"source": "remote_ok", "message": err_msg})
 
@@ -51,7 +51,7 @@ class RemoteOkProvider(JobProvider):
                 # First element in Remote OK response is usually a legal/info text dict, e.g. {"legal": "..."}
                 if not isinstance(item, dict) or "legal" in item or "id" not in item:
                     continue
-                
+
                 # Verify that it is indeed a job listing (must have position and company)
                 job_id = item.get("id")
                 position = item.get("position")
@@ -65,7 +65,7 @@ class RemoteOkProvider(JobProvider):
                 salary_max = item.get("salary_max")
                 if salary_min or salary_max:
                     salary = f"${salary_min or 0} - ${salary_max or 0}"
-                
+
                 # Tags mapping to skills
                 skills = item.get("tags", [])
                 if not isinstance(skills, list):
@@ -76,15 +76,15 @@ class RemoteOkProvider(JobProvider):
                     "title": position,
                     "company_name": company,
                     "location": item.get("location", "Remote"),
-                    "remote_status": "remote", # remote_ok jobs are remote
-                    "employment_type": None, # feed does not explicitly have commitment
+                    "remote_status": "remote",  # remote_ok jobs are remote
+                    "employment_type": None,  # feed does not explicitly have commitment
                     "salary": salary,
                     "description": item.get("description", ""),
                     "skills": skills,
                     "source": self.provider_name,
                     "source_board": None,
                     "original_url": item.get("url", ""),
-                    "posted_date": item.get("date")
+                    "posted_date": item.get("date"),
                 }
                 normalized_jobs.append(normalized)
         else:
@@ -97,5 +97,5 @@ class RemoteOkProvider(JobProvider):
             sources_checked=sources_checked,
             sources_succeeded=sources_succeeded,
             sources_failed=sources_failed,
-            errors=errors
+            errors=errors,
         )

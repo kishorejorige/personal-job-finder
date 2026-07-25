@@ -1,12 +1,12 @@
 import os
-import json
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.main import app
 from app.database import Base, get_db
+from app.main import app
 from app.models.profile import Profile
 
 # Use a temporary local SQLite database for testing
@@ -14,6 +14,7 @@ TEST_DATABASE_URL = "sqlite:///./test_profile.db"
 
 engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 @pytest.fixture(scope="function", autouse=True)
 def setup_db():
@@ -47,6 +48,7 @@ def setup_db():
         except PermissionError:
             pass
 
+
 client = TestClient(app)
 
 # Sample resumes
@@ -79,15 +81,18 @@ CERTIFICATIONS
 - AWS Certified Developer
 """
 
+
 def test_health_endpoint():
     response = client.get("/api/health")
     assert response.status_code == 200
     assert response.json()["status"] == "healthy"
 
+
 def test_get_profile_not_found():
     response = client.get("/api/profile")
     assert response.status_code == 404
     assert "No profile found" in response.json()["detail"]
+
 
 def test_unsupported_file_rejection():
     # Test uploading a file with an unsupported extension (e.g. .jpg)
@@ -95,6 +100,7 @@ def test_unsupported_file_rejection():
     response = client.post("/api/profile/upload-resume", files=files)
     assert response.status_code == 400
     assert "Only PDF, DOCX, and TXT resumes are supported" in response.json()["detail"]
+
 
 def test_oversized_file_rejection():
     # Test file larger than 2MB
@@ -104,12 +110,14 @@ def test_oversized_file_rejection():
     assert response.status_code == 400
     assert "larger than 2 MB" in response.json()["detail"]
 
+
 def test_empty_resume_rejection():
     # Test empty text file
     files = {"file": ("resume.txt", b"", "text/plain")}
     response = client.post("/api/profile/upload-resume", files=files)
     assert response.status_code == 400
     assert "empty" in response.json()["detail"]
+
 
 def test_profile_creation_from_txt_resume():
     # Test upload and check parsing
@@ -133,6 +141,7 @@ def test_profile_creation_from_txt_resume():
     assert "Job Finder App" in profile["projects"][0]
     assert "AWS Certified Developer" in profile["certifications"][0]
 
+
 def test_get_profile_success():
     # First upload profile
     files = {"file": ("resume.txt", SAMPLE_TXT_RESUME.encode("utf-8"), "text/plain")}
@@ -143,6 +152,7 @@ def test_get_profile_success():
     profile = response.json()
     assert profile["full_name"] == "John Doe"
     assert profile["email"] == "john.doe@example.com"
+
 
 def test_update_profile():
     # Upload profile first
@@ -158,10 +168,16 @@ def test_update_profile():
         "professional_title": "Senior Software Engineer",
         "professional_summary": "Updated summary description.",
         "skills": ["Python", "FastAPI", "Kubernetes", "AWS"],
-        "work_experience": ["Senior Developer at BigCo (2022-Present)", "Software Engineer at TechCorp (2021-2022)"],
-        "education": ["MS in Computer Science, State University", "BS in Computer Science, State University"],
+        "work_experience": [
+            "Senior Developer at BigCo (2022-Present)",
+            "Software Engineer at TechCorp (2021-2022)",
+        ],
+        "education": [
+            "MS in Computer Science, State University",
+            "BS in Computer Science, State University",
+        ],
         "projects": ["Updated Project"],
-        "certifications": ["AWS Solutions Architect", "AWS Certified Developer"]
+        "certifications": ["AWS Solutions Architect", "AWS Certified Developer"],
     }
 
     response = client.put("/api/profile", json=update_data)
@@ -178,6 +194,7 @@ def test_update_profile():
     profile_db = get_resp.json()
     assert profile_db["resume_text"] is not None
     assert profile_db["full_name"] == "John Updated"
+
 
 def test_reupload_updates_active_profile():
     # 1. Upload first profile
